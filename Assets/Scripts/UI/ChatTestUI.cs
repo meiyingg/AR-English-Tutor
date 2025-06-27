@@ -122,33 +122,32 @@ public class ChatTestUI : MonoBehaviour
     
     private void OnImageButtonClick()
     {
-        Debug.Log("Image button clicked!");
+        Debug.Log("Image button clicked - starting scene learning!");
         
-        // For now, let's create a simple test without ImageUploadManager
-        TestImageUpload();
+        // Directly start scene learning without popup
+        TestSceneRecognition();
     }
     
-    private void TestImageUpload()
+    private void TestSceneRecognition()
     {
 #if UNITY_EDITOR
-        string path = UnityEditor.EditorUtility.OpenFilePanel("Select Image", "", "png,jpg,jpeg");
+        string path = UnityEditor.EditorUtility.OpenFilePanel("Select Image for Scene Learning", "", "png,jpg,jpeg");
         if (!string.IsNullOrEmpty(path))
         {
-            Debug.Log($"Selected image: {path}");
-            ProcessImageFile(path);
+            Debug.Log($"Selected image for scene learning: {path}");
+            ProcessSceneRecognitionFile(path);
         }
         else
         {
-            Debug.Log("No image selected");
+            Debug.Log("No image selected for scene learning");
         }
 #else
-        Debug.Log("Image upload would work on mobile device");
-        // Show a test message for now
-        UpdateChatHistory("Image upload feature clicked (mobile version needs NativeGallery plugin)", ChatManager.Sender.Tutor);
+        Debug.Log("Scene learning would work on mobile device");
+        UpdateChatHistory("? Scene learning feature clicked (mobile version needs NativeGallery plugin)", ChatManager.Sender.Tutor);
 #endif
     }
     
-    private async void ProcessImageFile(string imagePath)
+    private async void ProcessSceneRecognitionFile(string imagePath)
     {
         try
         {
@@ -171,9 +170,8 @@ public class ChatTestUI : MonoBehaviour
                 // Disable UI during processing
                 SetUIInteractable(false);
                 
-                // Send to AI for analysis with user's text
-                // Note: ChatManager will handle displaying the user message
-                await ChatManager.Instance.SendImageMessage(base64, texture, userText);
+                // Send to AI for scene recognition with user's text
+                await ChatManager.Instance.SendSceneRecognitionRequest(base64, texture, userText);
                 
                 // Re-enable UI
                 SetUIInteractable(true);
@@ -186,8 +184,8 @@ public class ChatTestUI : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"Error processing image: {e.Message}");
-            UpdateChatHistory("Error processing image. Please try again.", ChatManager.Sender.Tutor);
+            Debug.LogError($"Error processing scene recognition: {e.Message}");
+            UpdateChatHistory("Error processing scene recognition. Please try again.", ChatManager.Sender.Tutor);
         }
     }
     

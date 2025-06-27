@@ -66,30 +66,35 @@ public class OpenAIManager : MonoBehaviour
     // New method for Vision API requests
     public async Task<string> PostVisionRequest(string imageBase64, string promptText = "Describe this image in English for language learning.")
     {
-        // Updated to use GPT-4.1 nano model
-        string jsonPayload = $@"{{
+        // Escape quotes in prompt text
+        string escapedPrompt = promptText.Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+        
+        // Build JSON manually for better control
+        string jsonPayload = @"{
             ""model"": ""gpt-4.1-nano"",
             ""messages"": [
-                {{
+                {
                     ""role"": ""user"",
                     ""content"": [
-                        {{
+                        {
                             ""type"": ""text"",
-                            ""text"": ""{promptText}""
-                        }},
-                        {{
+                            ""text"": """ + escapedPrompt + @"""
+                        },
+                        {
                             ""type"": ""image_url"",
-                            ""image_url"": {{
-                                ""url"": ""data:image/png;base64,{imageBase64}""
-                            }}
-                        }}
+                            ""image_url"": {
+                                ""url"": ""data:image/png;base64," + imageBase64 + @"""
+                            }
+                        }
                     ]
-                }}
+                }
             ],
             ""max_tokens"": 300
-        }}";
+        }";
 
         Debug.Log("? Sending Vision API request with model: gpt-4.1-nano");
+        Debug.Log("? JSON Payload length: " + jsonPayload.Length + " characters");
+        
         byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonPayload);
 
         using (UnityWebRequest request = new UnityWebRequest(ApiUrl, "POST"))
@@ -119,8 +124,26 @@ public class OpenAIManager : MonoBehaviour
             else
             {
                 Debug.Log("? Vision API request successful!");
-                var responseJson = JsonUtility.FromJson<ChatResponse>(request.downloadHandler.text);
-                return responseJson.choices[0].message.content;
+                Debug.Log("? Raw Response: " + request.downloadHandler.text);
+                
+                try
+                {
+                    var responseJson = JsonUtility.FromJson<ChatResponse>(request.downloadHandler.text);
+                    if (responseJson != null && responseJson.choices != null && responseJson.choices.Count > 0)
+                    {
+                        return responseJson.choices[0].message.content;
+                    }
+                    else
+                    {
+                        Debug.LogError("Invalid response structure from Vision API");
+                        return "Sorry, I couldn't process the image properly. Please try again.";
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError("Error parsing Vision API response: " + e.Message);
+                    return "Sorry, I couldn't process the image properly. Please try again.";
+                }
             }
         }
     }
@@ -171,6 +194,13 @@ public class Choice
 public class VisionChatRequest
 {
     public string model;
-    public List<ChatMessage> messages;
+    public List<VisionChatMessage> messages;
     public int max_tokens;
+}
+
+[System.Serializable]
+public class VisionChatMessage
+{
+    public string role;
+    public List<MessageContent> content;
 }

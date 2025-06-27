@@ -93,4 +93,56 @@ public class ChatManager : MonoBehaviour
             onNewMessage.Invoke("Sorry, I couldn't analyze the image. Please try again.", Sender.Tutor);
         }
     }
+
+    public async Task SendSceneRecognitionRequest(string imageBase64, Texture2D imageTexture, string additionalText = "")
+    {
+        // Show user's action message
+        string userDisplayMessage = string.IsNullOrEmpty(additionalText) 
+            ? "? Let's start an English lesson with this scene!" 
+            : $"? Scene lesson: {additionalText}";
+        onNewMessage.Invoke(userDisplayMessage, Sender.User);
+        
+        // Show analyzing message
+        onNewMessage.Invoke("Looking at your image and preparing lesson...", Sender.Tutor);
+        
+        // Create scene recognition prompt for interactive learning
+        string scenePrompt = @"You are an English tutor. Look at this image and start an interactive English lesson based on what you see.
+
+Instructions:
+1. Identify the scene/location in the image
+2. Act as a friendly English teacher - start a conversation about this scene
+3. ONLY respond in English (no Chinese translations)
+4. Begin with a simple greeting and scene introduction
+5. Ask ONE interactive question to engage the student
+6. Keep your first response short and conversational (2-3 sentences max)
+
+Example responses:
+- ""Hello! I can see you're at a coffee shop. What would you like to order today?""
+- ""Hi there! This looks like a beautiful park. Do you enjoy spending time outdoors?""
+- ""Welcome! I see you're in a restaurant. Are you dining alone or with friends?""
+
+Start the lesson now - be natural and encouraging!";
+
+        if (!string.IsNullOrEmpty(additionalText))
+        {
+            scenePrompt += $"\n\nUser's additional context: {additionalText}";
+        }
+        
+        // Get AI response for scene recognition
+        string response = await OpenAIManager.Instance.PostVisionRequest(imageBase64, scenePrompt);
+        
+        if (!string.IsNullOrEmpty(response))
+        {
+            // Add the scene analysis to chat history
+            var aiMessage = new ChatMessage { role = "assistant", content = response };
+            messages.Add(aiMessage);
+            
+            // Display the interactive lesson start
+            onNewMessage.Invoke(response, Sender.Tutor);
+        }
+        else
+        {
+            onNewMessage.Invoke("Sorry, I couldn't see the image clearly. Could you try uploading it again?", Sender.Tutor);
+        }
+    }
 }
