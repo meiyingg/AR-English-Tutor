@@ -8,6 +8,7 @@ public class ChatManager : MonoBehaviour
     public static ChatManager Instance { get; private set; }
 
     private List<ChatMessage> messages = new List<ChatMessage>();
+    private int currentSessionTurns = 0; // 当前会话的对话轮数
 
     public enum Sender { User, Tutor }
 
@@ -42,6 +43,9 @@ public class ChatManager : MonoBehaviour
     {
         var userMessage = new ChatMessage { role = "user", content = text };
         messages.Add(userMessage);
+        
+        // Increment session turns
+        currentSessionTurns++;
 
         // Add user message to UI immediately
         onNewMessage.Invoke(text, Sender.User);
@@ -53,6 +57,21 @@ public class ChatManager : MonoBehaviour
             var aiMessage = new ChatMessage { role = "assistant", content = response };
             messages.Add(aiMessage);
             onNewMessage.Invoke(response, Sender.Tutor);
+            
+            // Award experience for each conversation turn
+            if (LearningProgressManager.Instance != null)
+            {
+                // Give base experience for each conversation (5 EXP per turn)
+                LearningProgressManager.Instance.AddExperience(5);
+                
+                // Give bonus for continuous conversation (every 3rd turn)
+                if (currentSessionTurns >= 3)
+                {
+                    LearningProgressManager.Instance.AddExperience(5); // Bonus EXP
+                    Debug.Log($"? Conversation bonus: +5 EXP for continuous chat!");
+                    currentSessionTurns = 0; // Reset counter after bonus
+                }
+            }
         }
         else
         {
@@ -96,6 +115,9 @@ public class ChatManager : MonoBehaviour
 
     public async Task SendSceneRecognitionRequest(string imageBase64, Texture2D imageTexture, string additionalText = "")
     {
+        // Reset session turn counter for new scene
+        currentSessionTurns = 0;
+        
         // Show user's action message
         string userDisplayMessage = string.IsNullOrEmpty(additionalText) 
             ? "? Let's start an English lesson with this scene!" 
@@ -105,23 +127,66 @@ public class ChatManager : MonoBehaviour
         // Show analyzing message
         onNewMessage.Invoke("Looking at your image and preparing lesson...", Sender.Tutor);
         
-        // Create scene recognition prompt for interactive learning
-        string scenePrompt = @"You are an English tutor. Look at this image and start an interactive English lesson based on what you see.
+        // Get user's learning level to adjust difficulty
+        string difficultyLevel = "beginner";
+        if (LearningProgressManager.Instance != null)
+        {
+            difficultyLevel = LearningProgressManager.Instance.GetLearningDifficultyLevel();
+        }
+        
+        // Create scene recognition prompt with adaptive difficulty
+        string scenePrompt = $@"You are an English tutor. Look at this image and start an interactive English lesson based on what you see.
+
+Learning Level: {difficultyLevel}
 
 Instructions:
 1. Identify the scene/location in the image
-2. Act as a friendly English teacher - start a conversation about this scene
+2. Act as a friendly English teacher - start a conversation about this scene  
 3. ONLY respond in English (no Chinese translations)
-4. Begin with a simple greeting and scene introduction
+4. Adapt your language complexity to the {difficultyLevel} level
 5. Ask ONE interactive question to engage the student
 6. Keep your first response short and conversational (2-3 sentences max)
 
-Example responses:
-- ""Hello! I can see you're at a coffee shop. What would you like to order today?""
-- ""Hi there! This looks like a beautiful park. Do you enjoy spending time outdoors?""
-- ""Welcome! I see you're in a restaurant. Are you dining alone or with friends?""
+Language Guidelines for {difficultyLevel} level:
+- beginner: Use simple words, present tense, basic vocabulary
+- elementary: Use common phrases, simple past/future, everyday vocabulary  
+- intermediate: Use natural expressions, various tenses, common idioms
+- upper-intermediate: Use business/formal language, complex sentences
+- advanced: Use sophisticated vocabulary, cultural references, nuanced expressions
 
-Start the lesson now - be natural and encouraging!";
+Example responses for {difficultyLevel}:";
+
+        // Add level-specific examples
+        switch (difficultyLevel)
+        {
+            case "beginner":
+                scenePrompt += @"
+- ""Hello! I see a coffee shop. Do you like coffee?""
+- ""Hi! This is a park. The weather looks nice today.""";
+                break;
+            case "elementary":
+                scenePrompt += @"
+- ""Hello! I can see you're at a coffee shop. What would you like to order today?""
+- ""Hi there! This looks like a beautiful park. Do you enjoy spending time outdoors?""";
+                break;
+            case "intermediate":
+                scenePrompt += @"
+- ""Welcome! I see you're in a restaurant. Are you dining alone or with friends?""
+- ""This appears to be a bustling shopping district. What brings you here today?""";
+                break;
+            case "upper-intermediate":
+                scenePrompt += @"
+- ""I notice you're in what appears to be a professional environment. Are you here for business or pleasure?""
+- ""This seems like an interesting cultural venue. What's caught your attention here?""";
+                break;
+            case "advanced":
+                scenePrompt += @"
+- ""This establishment has quite an ambiance. I'm curious about what drew you to this particular locale.""
+- ""The setting suggests this might be a place of some cultural significance. What's your take on it?""";
+                break;
+        }
+        
+        scenePrompt += "\n\nStart the lesson now - be natural and encouraging!";
 
         if (!string.IsNullOrEmpty(additionalText))
         {
@@ -139,6 +204,12 @@ Start the lesson now - be natural and encouraging!";
             
             // Display the interactive lesson start
             onNewMessage.Invoke(response, Sender.Tutor);
+            
+            // Award experience for starting a scene learning session
+            if (LearningProgressManager.Instance != null)
+            {
+                LearningProgressManager.Instance.CompleteSession(true, 1);
+            }
         }
         else
         {
