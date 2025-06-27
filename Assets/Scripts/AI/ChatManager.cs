@@ -14,6 +14,10 @@ public class ChatManager : MonoBehaviour
     [System.Serializable]
     public class NewMessageEvent : UnityEvent<string, Sender> { }
     public NewMessageEvent onNewMessage;
+    
+    [System.Serializable]
+    public class NewImageMessageEvent : UnityEvent<Texture2D, string, Sender> { }
+    public NewImageMessageEvent onNewImageMessage;
 
     private void Awake()
     {
@@ -53,6 +57,40 @@ public class ChatManager : MonoBehaviour
         else
         {
             onNewMessage.Invoke("Error: Could not get a response.", Sender.Tutor);
+        }
+    }
+
+    public async Task SendImageMessage(string imageBase64, Texture2D imageTexture, string additionalText = "")
+    {
+        // Show user's image message with any additional text
+        string userDisplayMessage = string.IsNullOrEmpty(additionalText) 
+            ? "? Image uploaded" 
+            : $"? Image uploaded: {additionalText}";
+        onNewMessage.Invoke(userDisplayMessage, Sender.User);
+        
+        // Show analyzing message
+        onNewMessage.Invoke("Analyzing image...", Sender.Tutor);
+        
+        // Create prompt for image analysis
+        string prompt = string.IsNullOrEmpty(additionalText) 
+            ? "Describe this image in English for language learning. Be detailed and educational."
+            : $"Describe this image in English for language learning. User also added: {additionalText}";
+        
+        // Get AI response for the image
+        string response = await OpenAIManager.Instance.PostVisionRequest(imageBase64, prompt);
+        
+        if (!string.IsNullOrEmpty(response))
+        {
+            // Add the image analysis to chat history
+            var aiMessage = new ChatMessage { role = "assistant", content = response };
+            messages.Add(aiMessage);
+            
+            // Replace the "Analyzing..." message with the actual response
+            onNewMessage.Invoke(response, Sender.Tutor);
+        }
+        else
+        {
+            onNewMessage.Invoke("Sorry, I couldn't analyze the image. Please try again.", Sender.Tutor);
         }
     }
 }

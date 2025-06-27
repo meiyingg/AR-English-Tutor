@@ -6,7 +6,9 @@ public class ChatTestUI : MonoBehaviour
 {
     public TMP_InputField inputField;
     public Button sendButton;
+    public Button imageButton; // New image upload button
     public GameObject chatMessagePrefab; // 我们将实例化的消息预制体
+    public GameObject imageMessagePrefab; // New prefab for image messages
     public Transform chatContentPanel; // ScrollView的Content对象
 
     [Header("Chat Bubble Colors")]
@@ -15,8 +17,63 @@ public class ChatTestUI : MonoBehaviour
 
     void Start()
     {
-        sendButton.onClick.AddListener(OnSendButtonClick);
-        ChatManager.Instance.onNewMessage.AddListener(UpdateChatHistory);
+        Debug.Log("? ChatTestUI: Starting...");
+        
+        // Connect send button
+        if (sendButton != null)
+        {
+            sendButton.onClick.AddListener(OnSendButtonClick);
+            Debug.Log("? Send button connected");
+        }
+        else
+        {
+            Debug.LogError("? Send button not assigned in Inspector!");
+        }
+        
+        // Connect image button (only if dragged in Inspector)
+        if (imageButton != null)
+        {
+            imageButton.onClick.AddListener(OnImageButtonClick);
+            Debug.Log("? Image button connected via Inspector");
+        }
+        else
+        {
+            Debug.LogWarning("?? Image button not assigned in Inspector. Please drag ImageButton to the 'Image Button' field in ChatTestUI component.");
+        }
+        
+        // Check required prefabs
+        if (chatMessagePrefab != null)
+        {
+            Debug.Log("? Chat message prefab assigned");
+        }
+        else
+        {
+            Debug.LogError("? Chat message prefab not assigned in Inspector!");
+        }
+        
+        // imageMessagePrefab is optional for now
+        if (imageMessagePrefab != null)
+        {
+            Debug.Log("? Image message prefab assigned (future feature)");
+        }
+        else
+        {
+            Debug.Log("?? Image message prefab not assigned - using text fallback");
+        }
+        
+        // Connect chat events
+        if (ChatManager.Instance != null)
+        {
+            ChatManager.Instance.onNewMessage.AddListener(UpdateChatHistory);
+            // Note: No longer subscribing to onNewImageMessage since we handle image messages as text messages
+            Debug.Log("? Chat events connected");
+        }
+        else
+        {
+            Debug.LogError("? ChatManager.Instance is null!");
+        }
+        
+        Debug.Log("? ChatTestUI: Setup complete");
     }
 
     private async void OnSendButtonClick()
@@ -25,19 +82,96 @@ public class ChatTestUI : MonoBehaviour
         if (!string.IsNullOrEmpty(message))
         {
             // 禁用输入框和按钮，防止在等待AI响应时重复发送
-            inputField.interactable = false;
-            sendButton.interactable = false;
+            SetUIInteractable(false);
 
             await ChatManager.Instance.SendMessage(message);
 
             inputField.text = "";
             // 重新激活输入框和按钮
-            inputField.interactable = true;
-            sendButton.interactable = true;
+            SetUIInteractable(true);
             inputField.ActivateInputField(); // 重新聚焦到输入框
         }
     }
-
+    
+    private void OnImageButtonClick()
+    {
+        Debug.Log("Image button clicked!");
+        
+        // For now, let's create a simple test without ImageUploadManager
+        TestImageUpload();
+    }
+    
+    private void TestImageUpload()
+    {
+#if UNITY_EDITOR
+        string path = UnityEditor.EditorUtility.OpenFilePanel("Select Image", "", "png,jpg,jpeg");
+        if (!string.IsNullOrEmpty(path))
+        {
+            Debug.Log($"Selected image: {path}");
+            ProcessImageFile(path);
+        }
+        else
+        {
+            Debug.Log("No image selected");
+        }
+#else
+        Debug.Log("Image upload would work on mobile device");
+        // Show a test message for now
+        UpdateChatHistory("Image upload feature clicked (mobile version needs NativeGallery plugin)", ChatManager.Sender.Tutor);
+#endif
+    }
+    
+    private async void ProcessImageFile(string imagePath)
+    {
+        try
+        {
+            // Read image file
+            byte[] imageData = System.IO.File.ReadAllBytes(imagePath);
+            
+            // Create texture
+            Texture2D texture = new Texture2D(2, 2);
+            if (texture.LoadImage(imageData))
+            {
+                // Convert to base64
+                string base64 = System.Convert.ToBase64String(texture.EncodeToPNG());
+                
+                // Get user's text input (if any)
+                string userText = inputField.text.Trim();
+                
+                // Clear input field
+                inputField.text = "";
+                
+                // Disable UI during processing
+                SetUIInteractable(false);
+                
+                // Send to AI for analysis with user's text
+                // Note: ChatManager will handle displaying the user message
+                await ChatManager.Instance.SendImageMessage(base64, texture, userText);
+                
+                // Re-enable UI
+                SetUIInteractable(true);
+            }
+            else
+            {
+                Debug.LogError("Failed to load image");
+                UpdateChatHistory("Failed to load image. Please try a different image.", ChatManager.Sender.Tutor);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error processing image: {e.Message}");
+            UpdateChatHistory("Error processing image. Please try again.", ChatManager.Sender.Tutor);
+        }
+    }
+    
+    private void SetUIInteractable(bool interactable)
+    {
+        inputField.interactable = interactable;
+        sendButton.interactable = interactable;
+        if (imageButton != null)
+            imageButton.interactable = interactable;
+    }
+    
     private void UpdateChatHistory(string message, ChatManager.Sender sender)
     {
         // ★★★ 最终修复：使用 SetParent(parent, false) 来确保正确的UI缩放和定位 ★★★
@@ -65,4 +199,5 @@ public class ChatTestUI : MonoBehaviour
             bubbleImage.color = (sender == ChatManager.Sender.User) ? userBubbleColor : tutorBubbleColor;
         }
     }
+    
 }
