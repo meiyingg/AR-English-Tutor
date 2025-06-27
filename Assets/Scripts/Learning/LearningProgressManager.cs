@@ -10,15 +10,15 @@ public class LearningProgressManager : MonoBehaviour
     public UserProfile userProfile;
     
     [Header("Reward Settings")]
-    public int baseSessionReward = 10;      // 基础对话奖励
-    public int continuousRewardBonus = 5;   // 连续对话奖励
-    public int newWordBonus = 3;            // 新单词奖励
-    public int dailyBonus = 5;              // 每日首次奖励
+    public int baseSessionReward = 15;      // Base conversation reward
+    public int continuousRewardBonus = 10;  // Continuous conversation bonus
+    public int newWordBonus = 5;            // New word bonus
+    public int dailyBonus = 20;             // Daily first study bonus
     
     [Header("Events")]
-    public UnityEvent<int> OnExpGained;         // 获得经验值事件
-    public UnityEvent<int> OnLevelUp;           // 升级事件
-    public UnityEvent<UserProfile> OnProfileUpdated; // 资料更新事件
+    public UnityEvent<int> OnExpGained;         // EXP gained event
+    public UnityEvent<int> OnLevelUp;           // Level up event
+    public UnityEvent<UserProfile> OnProfileUpdated; // Profile updated event
     
     private const string SAVE_KEY = "UserLearningProfile";
     

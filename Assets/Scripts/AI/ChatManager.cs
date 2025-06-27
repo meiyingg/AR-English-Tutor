@@ -49,6 +49,15 @@ public class ChatManager : MonoBehaviour
 
         // Add user message to UI immediately
         onNewMessage.Invoke(text, Sender.User);
+        
+        // TODO: Achievement integration - Enable after Unity setup
+        // var achievementManager = FindObjectOfType<AchievementManager>();
+        // if (achievementManager != null)
+        // {
+        //     achievementManager.IncrementAchievementProgress("first_message");
+        //     achievementManager.IncrementAchievementProgress("chat_master");
+        //     achievementManager.IncrementAchievementProgress("conversation_king");
+        // }
 
         string response = await OpenAIManager.Instance.PostRequest(messages);
 
@@ -61,14 +70,14 @@ public class ChatManager : MonoBehaviour
             // Award experience for each conversation turn
             if (LearningProgressManager.Instance != null)
             {
-                // Give base experience for each conversation (5 EXP per turn)
-                LearningProgressManager.Instance.AddExperience(5);
+                // Give experience for each conversation (8 EXP per turn)
+                LearningProgressManager.Instance.AddExperience(8);
                 
                 // Give bonus for continuous conversation (every 3rd turn)
                 if (currentSessionTurns >= 3)
                 {
-                    LearningProgressManager.Instance.AddExperience(5); // Bonus EXP
-                    Debug.Log($"? Conversation bonus: +5 EXP for continuous chat!");
+                    LearningProgressManager.Instance.AddExperience(7); // Bonus EXP
+                    Debug.Log($"? Conversation bonus: +7 EXP for continuous chat!");
                     currentSessionTurns = 0; // Reset counter after bonus
                 }
             }

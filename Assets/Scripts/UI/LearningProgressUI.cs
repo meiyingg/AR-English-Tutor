@@ -12,6 +12,7 @@ public class LearningProgressUI : MonoBehaviour
     public GameObject levelUpPanel;             // 升级通知面板
     public TextMeshProUGUI levelUpText;         // 升级通知文本
     public Button levelUpCloseButton;           // 关闭升级通知按钮
+    public Button achievementButton;            // 成就按钮
     
     [Header("Animation Settings")]
     public float expBarAnimationSpeed = 2f;     // 经验条动画速度
@@ -37,6 +38,12 @@ public class LearningProgressUI : MonoBehaviour
         if (levelUpCloseButton != null)
         {
             levelUpCloseButton.onClick.AddListener(CloseLevelUpPanel);
+        }
+        
+        // 设置成就按钮
+        if (achievementButton != null)
+        {
+            achievementButton.onClick.AddListener(ShowAchievements);
         }
         
         // 初始隐藏升级面板
@@ -150,6 +157,28 @@ public class LearningProgressUI : MonoBehaviour
         if (levelUpPanel != null)
         {
             levelUpPanel.SetActive(false);
+        }
+    }
+    
+    // 显示成就列表
+    public void ShowAchievements()
+    {
+        if (levelUpPanel != null && levelUpText != null)
+        {
+            // TODO: Enable after Unity setup
+            // var achievementManager = FindObjectOfType<AchievementManager>();
+            // if (achievementManager != null)
+            // {
+            //     string achievementText = achievementManager.GetAchievementDisplayText();
+            //     levelUpText.text = achievementText;
+            // }
+            // else
+            // {
+                levelUpText.text = "? ACHIEVEMENTS\n\nAchievement system is ready!\nCreate AchievementManager GameObject to see achievements.";
+            // }
+            
+            levelUpText.color = Color.white;
+            levelUpPanel.SetActive(true);
         }
     }
     
