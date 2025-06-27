@@ -20,15 +20,6 @@
       },
       "hash": "cbe9b3a2f00e1bbc8f353ea71514580732922ed7"
     },
-    "com.unity.ai.navigation": {
-      "version": "1.1.5",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.modules.ai": "1.0.0"
-      },
-      "url": "https://packages.unity.cn"
-    },
     "com.unity.collab-proxy": {
       "version": "2.7.1",
       "depth": 0,
@@ -66,7 +57,7 @@
     },
     "com.unity.ide.rider": {
       "version": "3.0.34",
-      "depth": 0,
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.ext.nunit": "1.0.6"
@@ -176,16 +167,6 @@
         "com.unity.modules.ui": "1.0.0",
         "com.unity.modules.imgui": "1.0.0"
       }
-    },
-    "com.unity.visualscripting": {
-      "version": "1.9.4",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.ugui": "1.0.0",
-        "com.unity.modules.jsonserialize": "1.0.0"
-      },
-      "url": "https://packages.unity.cn"
     },
     "com.unity.xr.arcore": {
       "version": "5.1.6",

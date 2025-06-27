@@ -47,21 +47,6 @@ public class UIManager : MonoBehaviour
         ShowPanel(mainMenuPanel);
     }
     
-    void Update()
-    {
-        // 按ESC键切换UI显示/隐藏
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            ToggleUI();
-        }
-        
-        // 按M键返回主菜单
-        if (Input.GetKeyDown(KeyCode.M))
-        {
-            ShowPanel(mainMenuPanel);
-        }
-    }
-    
     public void ShowPanel(GameObject targetPanel)
     {
         // 隐藏所有面板

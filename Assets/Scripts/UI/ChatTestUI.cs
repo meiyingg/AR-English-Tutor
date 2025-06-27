@@ -11,6 +11,11 @@ public class ChatTestUI : MonoBehaviour
     public GameObject imageMessagePrefab; // New prefab for image messages
     public Transform chatContentPanel; // ScrollView的Content对象
 
+    [Header("Chat Panel Control")]
+    public GameObject chatPanel; // Chat面板的根GameObject
+    public Button toggleChatButton; // 控制显示/隐藏的按钮
+    private bool isChatPanelVisible = true; // 面板显示状态
+
     [Header("Chat Bubble Colors")]
     public Color userBubbleColor = new Color(0.0f, 0.5f, 1.0f); // 蓝色
     public Color tutorBubbleColor = new Color(0.8f, 0.8f, 0.8f); // 灰色
@@ -41,6 +46,28 @@ public class ChatTestUI : MonoBehaviour
             Debug.LogWarning("?? Image button not assigned in Inspector. Please drag ImageButton to the 'Image Button' field in ChatTestUI component.");
         }
         
+        // Connect toggle chat button
+        if (toggleChatButton != null)
+        {
+            toggleChatButton.onClick.AddListener(ToggleChatPanel);
+            Debug.Log("? Toggle chat button connected");
+        }
+        else
+        {
+            Debug.LogWarning("?? Toggle chat button not assigned in Inspector.");
+        }
+        
+        // Initialize chat panel state
+        if (chatPanel != null)
+        {
+            chatPanel.SetActive(isChatPanelVisible);
+            Debug.Log($"? Chat panel initialized - Visible: {isChatPanelVisible}");
+        }
+        else
+        {
+            Debug.LogWarning("?? Chat panel not assigned in Inspector.");
+        }
+
         // Check required prefabs
         if (chatMessagePrefab != null)
         {
@@ -200,4 +227,47 @@ public class ChatTestUI : MonoBehaviour
         }
     }
     
+    private void ToggleChatPanel()
+    {
+        isChatPanelVisible = !isChatPanelVisible;
+        chatPanel.SetActive(isChatPanelVisible);
+        
+        // Optionally, you can change the button text or icon here
+        // For example, if you have a Text component as a child of the button:
+        /*
+        Text buttonText = toggleChatButton.GetComponentInChildren<Text>();
+        if (buttonText != null)
+        {
+            buttonText.text = isChatPanelVisible ? "Hide Chat" : "Show Chat";
+        }
+        */
+        
+        Debug.Log($"Chat panel visibility toggled: {isChatPanelVisible}");
+    }
+
+    // Public methods for external control
+    public void ShowChatPanel()
+    {
+        if (chatPanel != null)
+        {
+            isChatPanelVisible = true;
+            chatPanel.SetActive(true);
+            Debug.Log("Chat panel shown");
+        }
+    }
+
+    public void HideChatPanel()
+    {
+        if (chatPanel != null)
+        {
+            isChatPanelVisible = false;
+            chatPanel.SetActive(false);
+            Debug.Log("Chat panel hidden");
+        }
+    }
+
+    public bool IsChatPanelVisible()
+    {
+        return isChatPanelVisible;
+    }
 }
