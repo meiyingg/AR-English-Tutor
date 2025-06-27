@@ -9,6 +9,7 @@
 
 # API Keys and sensitive data - DO NOT COMMIT!
 **/APIConfig.asset
+**/APIConfig.asset.meta
 *.env
 .env*
 config.json
