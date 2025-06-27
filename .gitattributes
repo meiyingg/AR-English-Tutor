@@ -1,0 +1,76 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Unity
+*.cs text eol=crlf
+*.shader text eol=lf
+*.cginc text eol=lf
+*.hlsl text eol=lf
+
+# Unity asset files should be treated as binary
+*.meta binary
+*.asset binary
+*.prefab binary
+*.unity binary
+*.mat binary
+*.anim binary
+*.controller binary
+*.mixer binary
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+
+# Graphics
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.tga binary
+*.tiff binary
+*.iff binary
+*.pict binary
+*.dds binary
+*.xcf binary
+
+# Audio
+*.ogg binary
+*.mp3 binary
+*.wav binary
+*.aiff binary
+*.aif binary
+*.mod binary
+*.it binary
+*.s3m binary
+*.xm binary
+
+# Video
+*.mov binary
+*.avi binary
+*.asf binary
+*.mpg binary
+*.mpeg binary
+*.mp4 binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+
+# 3D models
+*.fbx binary
+*.obj text
+*.max binary
+*.blend binary
+*.dae text
+*.mb binary
+*.ma text
+
+# Compressed files
+*.7z binary
+*.dmg binary
+*.gz binary
+*.iso binary
+*.jar binary
+*.rar binary
+*.tar binary
+*.zip binary
