@@ -1,7 +1,26 @@
+/*
+ * MainUIManager / ChatTestUI.cs
+ * 
+ * This script serves as the PRIMARY UI MANAGER for the AR English Learning application.
+ * It manages all major UI components including:
+ * - Chat interface and conversation flow
+ * - Learning progress display and updates
+ * - Achievement system notifications and popups
+ * - AR scene interaction UI
+ * - Image upload and AI response handling
+ * 
+ * Note: Despite the name "ChatTestUI", this is the MAIN UI CONTROLLER
+ * for the entire learning application.
+ */
+
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
+/// <summary>
+/// Main UI Manager for AR English Learning App
+/// Handles chat, progress, achievements, and all primary user interactions
+/// </summary>
 public class ChatTestUI : MonoBehaviour
 {
     public TMP_InputField inputField;
@@ -426,7 +445,7 @@ public class ChatTestUI : MonoBehaviour
         {
             UserProfile profile = LearningProgressManager.Instance.userProfile;
             
-            levelUpText.text = $"? LEVEL UP!\n\nYou are now Level {newLevel}\n({profile.GetLevelTitle()})";
+            levelUpText.text = $"*** LEVEL UP! ***\n\nYou are now Level {newLevel}\n({profile.GetLevelTitle()})";
             levelUpText.color = profile.GetLevelColor();
             
             levelUpPanel.SetActive(true);
@@ -449,7 +468,7 @@ public class ChatTestUI : MonoBehaviour
     {
         if (levelUpPanel != null && levelUpText != null)
         {
-            levelUpText.text = $"? ACHIEVEMENT UNLOCKED!\n\n{achievement.title}\n\n{achievement.description}";
+            levelUpText.text = $"*** ACHIEVEMENT UNLOCKED! ***\n\n{achievement.title}\n\n{achievement.description}\n\nReward: +{achievement.rewardExp} EXP";
             levelUpText.color = Color.yellow; // 成就通知用黄色
             
             levelUpPanel.SetActive(true);
@@ -457,15 +476,22 @@ public class ChatTestUI : MonoBehaviour
             // 5秒后自动关闭
             Invoke(nameof(CloseLevelUpPanel), 5f);
             
-            Debug.Log($"? Achievement notification shown: {achievement.title}");
+            Debug.Log($"Achievement notification shown: {achievement.title}");
         }
     }
     
-    // 显示成就列表
+    // 显示成就列表（切换功能）
     public void ShowAchievements()
     {
         if (levelUpPanel != null && levelUpText != null)
         {
+            // 如果面板已经显示，则关闭它
+            if (levelUpPanel.activeInHierarchy)
+            {
+                levelUpPanel.SetActive(false);
+                return;
+            }
+            
             // TODO: Fix compilation issue with AchievementManager reference
             // var achievementManager = FindObjectOfType<AchievementManager>();
             // if (achievementManager != null)
@@ -475,7 +501,7 @@ public class ChatTestUI : MonoBehaviour
             // }
             // else
             // {
-                levelUpText.text = "? ACHIEVEMENTS\n\nClick any message to unlock achievements!\n\n? Available Goals:\n? Ice Breaker - Send first message\n? Chat Master - Have 10 conversations\n? EXP Collector - Earn 100 experience\n? Rising Star - Reach level 3\n\nStart chatting to unlock achievements!";
+                levelUpText.text = "*** ACHIEVEMENTS ***\n\nClick any message to unlock achievements!\n\nAVAILABLE GOALS:\n[LOCK] Ice Breaker - Send first message\n[LOCK] Chat Master - Have 10 conversations\n[LOCK] EXP Collector - Earn 100 experience\n[LOCK] Rising Star - Reach level 3\n\nStart chatting to unlock achievements!\n\nPROGRESS: 0/15 achievements unlocked";
             // }
             
             levelUpText.color = Color.white;

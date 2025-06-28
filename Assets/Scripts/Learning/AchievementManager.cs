@@ -341,7 +341,7 @@ public class AchievementManager : MonoBehaviour
     public string GetAchievementDisplayText()
     {
         StringBuilder sb = new StringBuilder();
-        sb.AppendLine("? ACHIEVEMENTS");
+        sb.AppendLine("*** ACHIEVEMENTS ***");
         sb.AppendLine();
         
         var unlockedAchievements = achievements.Where(a => a.isUnlocked).ToList();
@@ -350,21 +350,21 @@ public class AchievementManager : MonoBehaviour
         // 显示已解锁成就
         if (unlockedAchievements.Count > 0)
         {
-            sb.AppendLine("? UNLOCKED:");
+            sb.AppendLine("UNLOCKED:");
             foreach (var achievement in unlockedAchievements.OrderByDescending(a => a.unlockedDate))
             {
-                sb.AppendLine($"?? {achievement.title}");
-                sb.AppendLine($"   {achievement.description}");
+                sb.AppendLine($"[DONE] {achievement.title}");
+                sb.AppendLine($"       {achievement.description}");
                 if (!string.IsNullOrEmpty(achievement.unlockedDate))
                 {
-                    sb.AppendLine($"   Unlocked: {achievement.unlockedDate}");
+                    sb.AppendLine($"       Unlocked: {achievement.unlockedDate}");
                 }
                 sb.AppendLine();
             }
         }
         else
         {
-            sb.AppendLine("? UNLOCKED: None yet - start chatting to unlock your first achievement!");
+            sb.AppendLine("UNLOCKED: None yet - start chatting to unlock your first achievement!");
             sb.AppendLine();
         }
         
@@ -372,12 +372,12 @@ public class AchievementManager : MonoBehaviour
         var progressAchievements = lockedAchievements.Where(a => a.currentValue > 0).ToList();
         if (progressAchievements.Count > 0)
         {
-            sb.AppendLine("? IN PROGRESS:");
+            sb.AppendLine("IN PROGRESS:");
             foreach (var achievement in progressAchievements)
             {
-                sb.AppendLine($"? {achievement.title}");
-                sb.AppendLine($"   {achievement.description}");
-                sb.AppendLine($"   Progress: {achievement.currentValue}/{achievement.targetValue}");
+                sb.AppendLine($"[....] {achievement.title}");
+                sb.AppendLine($"       {achievement.description}");
+                sb.AppendLine($"       Progress: {achievement.currentValue}/{achievement.targetValue}");
                 sb.AppendLine();
             }
         }
@@ -386,18 +386,18 @@ public class AchievementManager : MonoBehaviour
         var upcomingAchievements = lockedAchievements.Where(a => a.currentValue == 0).Take(3).ToList();
         if (upcomingAchievements.Count > 0)
         {
-            sb.AppendLine("? UPCOMING GOALS:");
+            sb.AppendLine("UPCOMING GOALS:");
             foreach (var achievement in upcomingAchievements)
             {
-                sb.AppendLine($"? {achievement.title}");
-                sb.AppendLine($"   {achievement.description}");
-                sb.AppendLine($"   Goal: {achievement.targetValue} | Reward: +{achievement.rewardExp} EXP");
+                sb.AppendLine($"[LOCK] {achievement.title}");
+                sb.AppendLine($"       {achievement.description}");
+                sb.AppendLine($"       Goal: {achievement.targetValue} | Reward: +{achievement.rewardExp} EXP");
                 sb.AppendLine();
             }
         }
         
         // 显示统计
-        sb.AppendLine($"? PROGRESS: {unlockedAchievements.Count}/{achievements.Count} achievements unlocked");
+        sb.AppendLine($"PROGRESS: {unlockedAchievements.Count}/{achievements.Count} achievements unlocked");
         
         return sb.ToString();
     }

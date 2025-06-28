@@ -41,10 +41,10 @@ public class Achievement
             return $"{currentValue}/{targetValue}";
     }
     
-    // Get display emoji based on unlock status
-    public string GetStatusEmoji()
+    // Get display status based on unlock status
+    public string GetStatusText()
     {
-        return isUnlocked ? "?" : "?";
+        return isUnlocked ? "[DONE]" : "[LOCK]";
     }
 }
 
