@@ -16,6 +16,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
+using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.ARSubsystems;
+using Unity.Collections;
 
 /// <summary>
 /// Main UI Manager for AR English Learning App
@@ -27,6 +31,7 @@ public class ChatTestUI : MonoBehaviour
     public Button sendButton;
     public Button imageButton; // New image upload button
     public Button recordButton; // New voice recording button
+    public Button takePhotoButton; // 新增：拍照按钮
     public GameObject chatMessagePrefab; // 我们将实例化的消息预制体
     public GameObject imageMessagePrefab; // New prefab for image messages
     public Transform chatContentPanel; // ScrollView的Content对象
@@ -61,6 +66,8 @@ public class ChatTestUI : MonoBehaviour
     
     private float targetExpProgress = 0f;
     private bool isAnimatingExp = false;
+
+    public ARCameraManager arCameraManager; // Drag ARCameraManager from AR Camera here in Inspector
 
     void Start()
     {
@@ -97,6 +104,17 @@ public class ChatTestUI : MonoBehaviour
         else
         {
             Debug.LogWarning("?? Record button not assigned in Inspector. Please drag RecordButton to the 'Record Button' field in ChatTestUI component.");
+        }
+        
+        // Connect take photo button
+        if (takePhotoButton != null)
+        {
+            takePhotoButton.onClick.AddListener(OnTakePhotoButtonClick);
+            Debug.Log("? Take Photo button connected");
+        }
+        else
+        {
+            Debug.LogWarning("?? Take Photo button not assigned in Inspector. Please drag TakePhotoButton to ChatTestUI component.");
         }
         
         // Subscribe to AudioManager events once in Start (not in StartRecording)
@@ -320,9 +338,31 @@ public class ChatTestUI : MonoBehaviour
         {
             Debug.Log("No image selected for scene learning");
         }
+#elif UNITY_ANDROID || UNITY_IOS
+        NativeGallery.RequestPermissionAsync((permission) => {
+            if (permission == NativeGallery.Permission.Granted)
+            {
+                NativeGallery.GetImageFromGallery((path) => {
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        Debug.Log($"Selected image for scene learning: {path}");
+                        ProcessSceneRecognitionFile(path);
+                    }
+                    else
+                    {
+                        Debug.Log("No image selected for scene learning");
+                        UpdateChatHistory("No image selected for scene learning", ChatManager.Sender.Tutor);
+                    }
+                }, "Select an image", "image/*");
+            }
+            else
+            {
+                UpdateChatHistory("Permission denied or cancelled.", ChatManager.Sender.Tutor);
+            }
+        }, NativeGallery.PermissionType.Read, NativeGallery.MediaType.Image);
 #else
         Debug.Log("Scene learning would work on mobile device");
-        UpdateChatHistory("? Scene learning feature clicked (mobile version needs NativeGallery plugin)", ChatManager.Sender.Tutor);
+        UpdateChatHistory("Scene learning feature clicked (unsupported platform)", ChatManager.Sender.Tutor);
 #endif
     }
     
@@ -386,8 +426,8 @@ public class ChatTestUI : MonoBehaviour
 
         // 2. 使用 SetParent 方法，并传入 false
         //    这个 false 参数 (worldPositionStays) 是解决问题的关键
-        //    它告诉Unity：“不要试图保持这个物体原来的世界位置，
-        //    而是让它的位置、旋转、缩放完全根据新的父对象来重新计算。”
+        //    它告诉Unity："不要试图保持这个物体原来的世界位置，
+        //    而是让它的位置、旋转、缩放完全根据新的父对象来重新计算。"
         messageRow.transform.SetParent(chatContentPanel, false);
 
         // 使用ChatMessageUI脚本来设置消息和对齐
@@ -717,5 +757,53 @@ public class ChatTestUI : MonoBehaviour
             AudioManager.Instance.OnRecordingStateChanged -= OnRecordingStateChanged;
             AudioManager.Instance.OnSpeechToTextResult -= OnTranscriptionReceived;
         }
+    }
+    
+    private void OnTakePhotoButtonClick()
+    {
+        StartCoroutine(CaptureARCameraImageAndSend());
+    }
+
+    private IEnumerator CaptureARCameraImageAndSend()
+    {
+        if (arCameraManager == null)
+        {
+            Debug.LogError("ARCameraManager is not assigned!");
+            UpdateChatHistory("AR camera is not configured", ChatManager.Sender.Tutor);
+            yield break;
+        }
+
+        XRCpuImage cpuImage;
+        if (arCameraManager.TryAcquireLatestCpuImage(out cpuImage))
+        {
+            var conversionParams = new XRCpuImage.ConversionParams
+            {
+                inputRect = new RectInt(0, 0, cpuImage.width, cpuImage.height),
+                outputDimensions = new Vector2Int(cpuImage.width, cpuImage.height),
+                outputFormat = TextureFormat.RGB24,
+                transformation = XRCpuImage.Transformation.MirrorY
+            };
+
+            Texture2D texture = new Texture2D(cpuImage.width, cpuImage.height, TextureFormat.RGB24, false);
+            NativeArray<byte> buffer = new NativeArray<byte>(cpuImage.GetConvertedDataSize(conversionParams), Allocator.Temp);
+            cpuImage.Convert(conversionParams, buffer);
+            texture.LoadRawTextureData(buffer);
+            texture.Apply();
+            buffer.Dispose();
+            cpuImage.Dispose();
+
+            string userText = inputField.text.Trim();
+            inputField.text = "";
+
+            SetUIInteractable(false);
+            yield return ChatManager.Instance.SendSceneRecognitionRequest(System.Convert.ToBase64String(texture.EncodeToPNG()), texture, userText);
+            SetUIInteractable(true);
+        }
+        else
+        {
+            Debug.LogError("Failed to acquire AR camera image!");
+            UpdateChatHistory("Failed to acquire AR camera image", ChatManager.Sender.Tutor);
+        }
+        yield break;
     }
 }
