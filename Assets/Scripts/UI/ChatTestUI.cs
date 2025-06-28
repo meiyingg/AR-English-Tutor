@@ -26,6 +26,7 @@ public class ChatTestUI : MonoBehaviour
     public TMP_InputField inputField;
     public Button sendButton;
     public Button imageButton; // New image upload button
+    public Button recordButton; // New voice recording button
     public GameObject chatMessagePrefab; // 我们将实例化的消息预制体
     public GameObject imageMessagePrefab; // New prefab for image messages
     public Transform chatContentPanel; // ScrollView的Content对象
@@ -34,6 +35,11 @@ public class ChatTestUI : MonoBehaviour
     public GameObject chatPanel; // Chat面板的根GameObject
     public Button toggleChatButton; // 控制显示/隐藏的按钮
     private bool isChatPanelVisible = true; // 面板显示状态
+
+    [Header("Speech Features")]
+    public Color recordingColor = Color.red;
+    public Color normalRecordButtonColor = Color.white;
+    private bool isRecording = false;
 
     [Header("Chat Bubble Colors")]
     public Color userBubbleColor = new Color(0.0f, 0.5f, 1.0f); // 蓝色
@@ -44,9 +50,9 @@ public class ChatTestUI : MonoBehaviour
     public TextMeshProUGUI titleText;           // 显示称号：Beginner
     public TextMeshProUGUI expText;             // 显示经验：120/300 EXP
     public Slider expProgressBar;               // 经验值进度条
-    public GameObject levelUpPanel;             // 升级通知面板
-    public TextMeshProUGUI levelUpText;         // 升级通知文本
-    public Button levelUpCloseButton;           // 关闭升级通知按钮
+    public GameObject systemNotificationPanel;   // 系统通知面板 - 用于显示升级、成就解锁等系统消息
+    public TextMeshProUGUI systemNotificationText;         // 系统通知文本 - 显示升级、成就等消息内容
+    public Button levelUpCloseButton;           // 关闭系统通知面板按钮
     public Button achievementButton;            // 成就按钮
 
     [Header("Progress Animation Settings")]
@@ -80,6 +86,24 @@ public class ChatTestUI : MonoBehaviour
         else
         {
             Debug.LogWarning("?? Image button not assigned in Inspector. Please drag ImageButton to the 'Image Button' field in ChatTestUI component.");
+        }
+        
+        // Connect record button for voice input
+        if (recordButton != null)
+        {
+            recordButton.onClick.AddListener(OnRecordButtonClick);
+            Debug.Log("? Record button connected");
+        }
+        else
+        {
+            Debug.LogWarning("?? Record button not assigned in Inspector. Please drag RecordButton to the 'Record Button' field in ChatTestUI component.");
+        }
+        
+        // Subscribe to AudioManager events once in Start (not in StartRecording)
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.OnRecordingStateChanged += OnRecordingStateChanged;
+            AudioManager.Instance.OnSpeechToTextResult += OnTranscriptionReceived;
         }
         
         // Connect toggle chat button
@@ -167,6 +191,122 @@ public class ChatTestUI : MonoBehaviour
         TestSceneRecognition();
     }
     
+    private void OnRecordButtonClick()
+    {
+        if (AudioManager.Instance == null)
+        {
+            Debug.LogWarning("AudioManager not found! Please add AudioManager to the scene.");
+            UpdateChatHistory("Speech feature unavailable. Please check AudioManager setup.", ChatManager.Sender.Tutor);
+            return;
+        }
+
+        if (!isRecording)
+        {
+            StartRecording();
+        }
+        else
+        {
+            StopRecording();
+        }
+    }
+    
+    private void StartRecording()
+    {
+        Debug.Log("Starting voice recording...");
+        isRecording = true;
+        
+        // Change button color to indicate recording
+        Image recordButtonImage = recordButton.GetComponent<Image>();
+        if (recordButtonImage != null)
+        {
+            recordButtonImage.color = recordingColor;
+        }
+        
+        // Update button text
+        TextMeshProUGUI buttonText = recordButton.GetComponentInChildren<TextMeshProUGUI>();
+        if (buttonText != null)
+        {
+            buttonText.text = "STOP";
+        }
+        
+        // Start recording via AudioManager
+        AudioManager.Instance.StartRecording();
+        
+        // Disable other UI during recording
+        SetUIInteractable(false);
+        recordButton.interactable = true; // Keep record button active to stop recording
+    }
+    
+    private void StopRecording()
+    {
+        Debug.Log("Stopping voice recording...");
+        
+        // Stop recording via AudioManager
+        AudioManager.Instance.StopRecording();
+        
+        ResetRecordButton();
+    }
+    
+    private void ResetRecordButton()
+    {
+        isRecording = false;
+        
+        // Reset button color
+        Image recordButtonImage = recordButton.GetComponent<Image>();
+        if (recordButtonImage != null)
+        {
+            recordButtonImage.color = normalRecordButtonColor;
+        }
+        
+        // Reset button text
+        TextMeshProUGUI buttonText = recordButton.GetComponentInChildren<TextMeshProUGUI>();
+        if (buttonText != null)
+        {
+            buttonText.text = "?";
+        }
+        
+        // Re-enable UI
+        SetUIInteractable(true);
+    }
+    
+    // Audio event handlers
+    private void OnRecordingStateChanged(bool isRecording)
+    {
+        if (isRecording)
+        {
+            Debug.Log("Recording started successfully");
+            // Don't show recording status messages in chat to avoid clutter
+        }
+        else
+        {
+            Debug.Log("Recording finished, processing...");
+            // Don't show recording status messages in chat to avoid clutter
+        }
+    }
+    
+    private void OnTranscriptionReceived(string transcription)
+    {
+        Debug.Log($"Transcription received: {transcription}");
+        
+        // Put transcription in input field
+        if (inputField != null)
+        {
+            inputField.text = transcription;
+        }
+        
+        // Automatically send the transcribed message (don't show duplicate message)
+        OnSendButtonClick();
+        
+        ResetRecordButton();
+    }
+    
+    private void OnSpeechError(string error)
+    {
+        Debug.LogError($"Speech error: {error}");
+        UpdateChatHistory($"Speech recognition error: {error}", ChatManager.Sender.Tutor);
+        ResetRecordButton();
+    }
+    
     private void TestSceneRecognition()
     {
 #if UNITY_EDITOR
@@ -234,6 +374,8 @@ public class ChatTestUI : MonoBehaviour
         sendButton.interactable = interactable;
         if (imageButton != null)
             imageButton.interactable = interactable;
+        if (recordButton != null)
+            recordButton.interactable = interactable;
     }
     
     private void UpdateChatHistory(string message, ChatManager.Sender sender)
@@ -262,6 +404,53 @@ public class ChatTestUI : MonoBehaviour
         {
             bubbleImage.color = (sender == ChatManager.Sender.User) ? userBubbleColor : tutorBubbleColor;
         }
+        
+        // Add TTS functionality to AI messages (make them clickable)
+        if (sender == ChatManager.Sender.Tutor)
+        {
+            AddTTSClickHandler(messageRow, message);
+            
+            // Auto-play TTS for AI responses
+            PlayTTS(message);
+        }
+    }
+    
+    private void AddTTSClickHandler(GameObject messageObject, string text)
+    {
+        Button clickableArea = messageObject.GetComponent<Button>();
+        if (clickableArea == null)
+        {
+            clickableArea = messageObject.AddComponent<Button>();
+        }
+        
+        // Make the button transparent but clickable
+        clickableArea.targetGraphic = messageObject.GetComponentInChildren<Image>();
+        
+        // Add click event for TTS
+        clickableArea.onClick.AddListener(() => {
+            PlayTTS(text);
+        });
+        
+        // Optional: Add visual feedback
+        var colors = clickableArea.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1f, 1f, 1f, 0.8f);
+        colors.pressedColor = new Color(1f, 1f, 1f, 0.6f);
+        clickableArea.colors = colors;
+    }
+    
+    private void PlayTTS(string text)
+    {
+        if (AudioManager.Instance == null)
+        {
+            Debug.LogWarning("AudioManager not found! TTS not available.");
+            return;
+        }
+        
+        Debug.Log($"Playing TTS for: {text}");
+        
+        // Start TTS playback through AudioManager
+        _ = AudioManager.Instance.SpeakText(text);
     }
     
     private void ToggleChatPanel()
@@ -327,7 +516,7 @@ public class ChatTestUI : MonoBehaviour
         // 设置升级面板关闭按钮
         if (levelUpCloseButton != null)
         {
-            levelUpCloseButton.onClick.AddListener(CloseLevelUpPanel);
+            levelUpCloseButton.onClick.AddListener(CloseSystemNotificationPanel);
         }
         
         // 设置成就按钮
@@ -337,9 +526,9 @@ public class ChatTestUI : MonoBehaviour
         }
         
         // 初始隐藏升级面板
-        if (levelUpPanel != null)
+        if (systemNotificationPanel != null)
         {
-            levelUpPanel.SetActive(false);
+            systemNotificationPanel.SetActive(false);
         }
     }
     
@@ -441,40 +630,40 @@ public class ChatTestUI : MonoBehaviour
     
     private void ShowLevelUpNotification(int newLevel)
     {
-        if (levelUpPanel != null && levelUpText != null)
+        if (systemNotificationPanel != null && systemNotificationText != null)
         {
             UserProfile profile = LearningProgressManager.Instance.userProfile;
             
-            levelUpText.text = $"*** LEVEL UP! ***\n\nYou are now Level {newLevel}\n({profile.GetLevelTitle()})";
-            levelUpText.color = profile.GetLevelColor();
+            systemNotificationText.text = $"*** LEVEL UP! ***\n\nYou are now Level {newLevel}\n({profile.GetLevelTitle()})";
+            systemNotificationText.color = profile.GetLevelColor();
             
-            levelUpPanel.SetActive(true);
+            systemNotificationPanel.SetActive(true);
             
             // 3秒后自动关闭（可选）
-            Invoke(nameof(CloseLevelUpPanel), 3f);
+            Invoke(nameof(CloseSystemNotificationPanel), 3f);
         }
     }
     
-    private void CloseLevelUpPanel()
+    private void CloseSystemNotificationPanel()
     {
-        if (levelUpPanel != null)
+        if (systemNotificationPanel != null)
         {
-            levelUpPanel.SetActive(false);
+            systemNotificationPanel.SetActive(false);
         }
     }
     
     // 显示成就解锁通知
     public void ShowAchievementUnlocked(Achievement achievement)
     {
-        if (levelUpPanel != null && levelUpText != null)
+        if (systemNotificationPanel != null && systemNotificationText != null)
         {
-            levelUpText.text = $"*** ACHIEVEMENT UNLOCKED! ***\n\n{achievement.title}\n\n{achievement.description}\n\nReward: +{achievement.rewardExp} EXP";
-            levelUpText.color = Color.yellow; // 成就通知用黄色
+            systemNotificationText.text = $"*** ACHIEVEMENT UNLOCKED! ***\n\n{achievement.title}\n\n{achievement.description}\n\nReward: +{achievement.rewardExp} EXP";
+            systemNotificationText.color = Color.yellow; // 成就通知用黄色
             
-            levelUpPanel.SetActive(true);
+            systemNotificationPanel.SetActive(true);
             
             // 5秒后自动关闭
-            Invoke(nameof(CloseLevelUpPanel), 5f);
+            Invoke(nameof(CloseSystemNotificationPanel), 5f);
             
             Debug.Log($"Achievement notification shown: {achievement.title}");
         }
@@ -483,12 +672,12 @@ public class ChatTestUI : MonoBehaviour
     // 显示成就列表（切换功能）
     public void ShowAchievements()
     {
-        if (levelUpPanel != null && levelUpText != null)
+        if (systemNotificationPanel != null && systemNotificationText != null)
         {
             // 如果面板已经显示，则关闭它
-            if (levelUpPanel.activeInHierarchy)
+            if (systemNotificationPanel.activeInHierarchy)
             {
-                levelUpPanel.SetActive(false);
+                systemNotificationPanel.SetActive(false);
                 return;
             }
             
@@ -497,15 +686,15 @@ public class ChatTestUI : MonoBehaviour
             // if (achievementManager != null)
             // {
             //     string achievementText = achievementManager.GetAchievementDisplayText();
-            //     levelUpText.text = achievementText;
+            //     systemNotificationText.text = achievementText;
             // }
             // else
             // {
-                levelUpText.text = "*** ACHIEVEMENTS ***\n\nClick any message to unlock achievements!\n\nAVAILABLE GOALS:\n[LOCK] Ice Breaker - Send first message\n[LOCK] Chat Master - Have 10 conversations\n[LOCK] EXP Collector - Earn 100 experience\n[LOCK] Rising Star - Reach level 3\n\nStart chatting to unlock achievements!\n\nPROGRESS: 0/15 achievements unlocked";
+                systemNotificationText.text = "*** ACHIEVEMENTS ***\n\nClick any message to unlock achievements!\n\nAVAILABLE GOALS:\n[LOCK] Ice Breaker - Send first message\n[LOCK] Chat Master - Have 10 conversations\n[LOCK] EXP Collector - Earn 100 experience\n[LOCK] Rising Star - Reach level 3\n\nStart chatting to unlock achievements!\n\nPROGRESS: 0/15 achievements unlocked";
             // }
             
-            levelUpText.color = Color.white;
-            levelUpPanel.SetActive(true);
+            systemNotificationText.color = Color.white;
+            systemNotificationPanel.SetActive(true);
         }
     }
     
@@ -519,4 +708,14 @@ public class ChatTestUI : MonoBehaviour
     }
     
     #endregion
+
+    private void OnDestroy()
+    {
+        // Unsubscribe from AudioManager events to prevent memory leaks
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.OnRecordingStateChanged -= OnRecordingStateChanged;
+            AudioManager.Instance.OnSpeechToTextResult -= OnTranscriptionReceived;
+        }
+    }
 }

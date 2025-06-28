@@ -9,9 +9,9 @@ public class LearningProgressUI : MonoBehaviour
     public TextMeshProUGUI titleText;           // 显示称号：Beginner
     public TextMeshProUGUI expText;             // 显示经验：120/300 EXP
     public Slider expProgressBar;               // 经验值进度条
-    public GameObject levelUpPanel;             // 升级通知面板
-    public TextMeshProUGUI levelUpText;         // 升级通知文本
-    public Button levelUpCloseButton;           // 关闭升级通知按钮
+    public GameObject systemNotificationPanel;   // 系统通知面板 - 用于显示升级、成就解锁等系统消息
+    public TextMeshProUGUI systemNotificationText; // 系统通知文本 - 显示升级、成就等消息内容
+    public Button levelUpCloseButton;           // 关闭系统通知面板按钮
     public Button achievementButton;            // 成就按钮
     
     [Header("Animation Settings")]
@@ -37,7 +37,7 @@ public class LearningProgressUI : MonoBehaviour
         // 设置升级面板关闭按钮
         if (levelUpCloseButton != null)
         {
-            levelUpCloseButton.onClick.AddListener(CloseLevelUpPanel);
+            levelUpCloseButton.onClick.AddListener(CloseSystemNotificationPanel);
         }
         
         // 设置成就按钮
@@ -46,10 +46,10 @@ public class LearningProgressUI : MonoBehaviour
             achievementButton.onClick.AddListener(ShowAchievements);
         }
         
-        // 初始隐藏升级面板
-        if (levelUpPanel != null)
+        // 初始隐藏系统通知面板
+        if (systemNotificationPanel != null)
         {
-            levelUpPanel.SetActive(false);
+            systemNotificationPanel.SetActive(false);
         }
     }
     
@@ -136,49 +136,63 @@ public class LearningProgressUI : MonoBehaviour
         Debug.Log($"? +{amount} EXP animation should play here!");
     }
     
+    // ========================================
+    // 系统通知面板管理方法
+    // 用于显示各种系统消息：升级通知、成就解锁、特殊事件等
+    // ========================================
+    
+    /// <summary>
+    /// 显示升级通知
+    /// </summary>
+    /// <param name="newLevel">新达到的等级</param>
     private void ShowLevelUpNotification(int newLevel)
     {
-        if (levelUpPanel != null && levelUpText != null)
+        if (systemNotificationPanel != null && systemNotificationText != null)
         {
             UserProfile profile = LearningProgressManager.Instance.userProfile;
             
-            levelUpText.text = $"? LEVEL UP!\n\nYou are now Level {newLevel}\n({profile.GetLevelTitle()})";
-            levelUpText.color = profile.GetLevelColor();
+            systemNotificationText.text = $"? LEVEL UP!\n\nYou are now Level {newLevel}\n({profile.GetLevelTitle()})";
+            systemNotificationText.color = profile.GetLevelColor();
             
-            levelUpPanel.SetActive(true);
+            systemNotificationPanel.SetActive(true);
             
             // 3秒后自动关闭（可选）
-            Invoke(nameof(CloseLevelUpPanel), 3f);
+            Invoke(nameof(CloseSystemNotificationPanel), 3f);
         }
     }
     
-    private void CloseLevelUpPanel()
+    /// <summary>
+    /// 关闭系统通知面板
+    /// </summary>
+    private void CloseSystemNotificationPanel()
     {
-        if (levelUpPanel != null)
+        if (systemNotificationPanel != null)
         {
-            levelUpPanel.SetActive(false);
+            systemNotificationPanel.SetActive(false);
         }
     }
     
-    // 显示成就列表
+    /// <summary>
+    /// 显示成就列表 - 复用系统通知面板显示成就信息
+    /// </summary>
     public void ShowAchievements()
     {
-        if (levelUpPanel != null && levelUpText != null)
+        if (systemNotificationPanel != null && systemNotificationText != null)
         {
             // TODO: Enable after Unity setup
             // var achievementManager = FindObjectOfType<AchievementManager>();
             // if (achievementManager != null)
             // {
             //     string achievementText = achievementManager.GetAchievementDisplayText();
-            //     levelUpText.text = achievementText;
+            //     systemNotificationText.text = achievementText;
             // }
             // else
             // {
-                levelUpText.text = "? ACHIEVEMENTS\n\nAchievement system is ready!\nCreate AchievementManager GameObject to see achievements.";
+                systemNotificationText.text = "? ACHIEVEMENTS\n\nAchievement system is ready!\nCreate AchievementManager GameObject to see achievements.";
             // }
             
-            levelUpText.color = Color.white;
-            levelUpPanel.SetActive(true);
+            systemNotificationText.color = Color.white;
+            systemNotificationPanel.SetActive(true);
         }
     }
     
