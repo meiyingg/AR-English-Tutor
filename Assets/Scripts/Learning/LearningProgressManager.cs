@@ -94,29 +94,25 @@ public class LearningProgressManager : MonoBehaviour
     {
         int oldLevel = userProfile.level;
         userProfile.totalExp += amount;
-        
         Debug.Log($"? +{amount} EXP! Total: {userProfile.totalExp}");
-        
         // 检查是否升级
         CheckLevelUp(oldLevel);
-        
         OnExpGained?.Invoke(amount);
         OnProfileUpdated?.Invoke(userProfile);
+        SaveUserProfile(); // 确保每次加经验都保存
     }
     
     // 检查升级
     private void CheckLevelUp(int oldLevel)
     {
         int newLevel = CalculateLevel(userProfile.totalExp);
-        
         if (newLevel > oldLevel)
         {
             userProfile.level = newLevel;
             userProfile.hasUpgradedToday = true;
-            
             Debug.Log($"? LEVEL UP! You are now Level {newLevel} ({userProfile.GetLevelTitle()})!");
-            
             OnLevelUp?.Invoke(newLevel);
+            SaveUserProfile(); // 升级时也保存
         }
     }
     

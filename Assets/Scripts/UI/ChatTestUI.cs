@@ -20,6 +20,7 @@ using System.Collections;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using Unity.Collections;
+using System.Collections.Generic;
 
 /// <summary>
 /// Main UI Manager for AR English Learning App
@@ -169,7 +170,7 @@ public class ChatTestUI : MonoBehaviour
         // Connect chat events
         if (ChatManager.Instance != null)
         {
-            ChatManager.Instance.onNewMessage.AddListener(UpdateChatHistory);
+            ChatManager.Instance.onNewMessage.AddListener(OnNewMessageReceivedAdapter);
             // Note: No longer subscribing to onNewImageMessage since we handle image messages as text messages
             Debug.Log("? Chat events connected");
         }
@@ -418,40 +419,25 @@ public class ChatTestUI : MonoBehaviour
             recordButton.interactable = interactable;
     }
     
-    private void UpdateChatHistory(string message, ChatManager.Sender sender)
+    private void UpdateChatHistory(string message, ChatManager.Sender sender, bool isNotification = false)
     {
-        // ★★★ 最终修复：使用 SetParent(parent, false) 来确保正确的UI缩放和定位 ★★★
-        // 1. 先在世界空间中创建预制体，不指定父对象
         GameObject messageRow = Instantiate(chatMessagePrefab);
-
-        // 2. 使用 SetParent 方法，并传入 false
-        //    这个 false 参数 (worldPositionStays) 是解决问题的关键
-        //    它告诉Unity："不要试图保持这个物体原来的世界位置，
-        //    而是让它的位置、旋转、缩放完全根据新的父对象来重新计算。"
         messageRow.transform.SetParent(chatContentPanel, false);
-
-        // 使用ChatMessageUI脚本来设置消息和对齐
         ChatMessageUI messageUI = messageRow.GetComponent<ChatMessageUI>();
         if (messageUI != null)
         {
-            // 设置消息内容和对齐方式（true表示用户消息，右对齐）
             messageUI.SetMessage(message, sender == ChatManager.Sender.User);
         }
-        
-        // 设置气泡颜色
         Image bubbleImage = messageRow.GetComponentInChildren<Image>();
         if (bubbleImage != null)
         {
             bubbleImage.color = (sender == ChatManager.Sender.User) ? userBubbleColor : tutorBubbleColor;
         }
-        
-        // Add TTS functionality to AI messages (make them clickable)
-        if (sender == ChatManager.Sender.Tutor)
+        // 只有AI普通对话才自动TTS
+        if (sender == ChatManager.Sender.Tutor && !isNotification)
         {
             AddTTSClickHandler(messageRow, message);
-            
-            // Auto-play TTS for AI responses
-            PlayTTS(message);
+            PlayTTS(message, false);
         }
     }
     
@@ -479,18 +465,16 @@ public class ChatTestUI : MonoBehaviour
         clickableArea.colors = colors;
     }
     
-    private void PlayTTS(string text)
+    private void PlayTTS(string text, bool isNotification = false)
     {
         if (AudioManager.Instance == null)
         {
             Debug.LogWarning("AudioManager not found! TTS not available.");
             return;
         }
-        
-        Debug.Log($"Playing TTS for: {text}");
-        
-        // Start TTS playback through AudioManager
-        _ = AudioManager.Instance.SpeakText(text);
+        if (isNotification) return; // 通知类消息不播报
+        AudioManager.Instance.StopSpeaking(); // 直接中断上一次TTS
+        _ = AudioManager.Instance.SpeakText(text); // 播放新TTS
     }
     
     private void ToggleChatPanel()
@@ -628,6 +612,7 @@ public class ChatTestUI : MonoBehaviour
                 int nextLevelStartExp = profile.GetExpRequiredForLevel(profile.level + 1);
                 int expInCurrentLevel = profile.totalExp - currentLevelStartExp;
                 int expNeededForLevel = nextLevelStartExp - currentLevelStartExp;
+                expInCurrentLevel = Mathf.Max(0, expInCurrentLevel); // 防止负数
                 expText.text = $"{expInCurrentLevel}/{expNeededForLevel} EXP";
             }
         }
@@ -673,14 +658,13 @@ public class ChatTestUI : MonoBehaviour
         if (systemNotificationPanel != null && systemNotificationText != null)
         {
             UserProfile profile = LearningProgressManager.Instance.userProfile;
-            
             systemNotificationText.text = $"*** LEVEL UP! ***\n\nYou are now Level {newLevel}\n({profile.GetLevelTitle()})";
             systemNotificationText.color = profile.GetLevelColor();
-            
             systemNotificationPanel.SetActive(true);
-            
             // 3秒后自动关闭（可选）
             Invoke(nameof(CloseSystemNotificationPanel), 3f);
+            // 聊天窗口也显示升级消息，但不TTS
+            UpdateChatHistory($"LEVEL UP! You are now Level {newLevel} ({profile.GetLevelTitle()})", ChatManager.Sender.Tutor, true);
         }
     }
     
@@ -698,14 +682,12 @@ public class ChatTestUI : MonoBehaviour
         if (systemNotificationPanel != null && systemNotificationText != null)
         {
             systemNotificationText.text = $"*** ACHIEVEMENT UNLOCKED! ***\n\n{achievement.title}\n\n{achievement.description}\n\nReward: +{achievement.rewardExp} EXP";
-            systemNotificationText.color = Color.yellow; // 成就通知用黄色
-            
+            systemNotificationText.color = Color.yellow;
             systemNotificationPanel.SetActive(true);
-            
-            // 5秒后自动关闭
             Invoke(nameof(CloseSystemNotificationPanel), 5f);
-            
             Debug.Log($"Achievement notification shown: {achievement.title}");
+            // 聊天窗口也显示成就消息，但不TTS
+            UpdateChatHistory($"ACHIEVEMENT UNLOCKED! {achievement.title}: {achievement.description}", ChatManager.Sender.Tutor, true);
         }
     }
     
@@ -714,27 +696,16 @@ public class ChatTestUI : MonoBehaviour
     {
         if (systemNotificationPanel != null && systemNotificationText != null)
         {
-            // 如果面板已经显示，则关闭它
             if (systemNotificationPanel.activeInHierarchy)
             {
                 systemNotificationPanel.SetActive(false);
                 return;
             }
-            
-            // TODO: Fix compilation issue with AchievementManager reference
-            // var achievementManager = FindObjectOfType<AchievementManager>();
-            // if (achievementManager != null)
-            // {
-            //     string achievementText = achievementManager.GetAchievementDisplayText();
-            //     systemNotificationText.text = achievementText;
-            // }
-            // else
-            // {
-                systemNotificationText.text = "*** ACHIEVEMENTS ***\n\nClick any message to unlock achievements!\n\nAVAILABLE GOALS:\n[LOCK] Ice Breaker - Send first message\n[LOCK] Chat Master - Have 10 conversations\n[LOCK] EXP Collector - Earn 100 experience\n[LOCK] Rising Star - Reach level 3\n\nStart chatting to unlock achievements!\n\nPROGRESS: 0/15 achievements unlocked";
-            // }
-            
+            systemNotificationText.text = "*** ACHIEVEMENTS ***\n\nClick any message to unlock achievements!\n\nAVAILABLE GOALS:\n[LOCK] Ice Breaker - Send first message\n[LOCK] Chat Master - Have 10 conversations\n[LOCK] EXP Collector - Earn 100 experience\n[LOCK] Rising Star - Reach level 3\n\nStart chatting to unlock achievements!\n\nPROGRESS: 0/15 achievements unlocked";
             systemNotificationText.color = Color.white;
             systemNotificationPanel.SetActive(true);
+            // 聊天窗口也显示成就列表，但不TTS
+            UpdateChatHistory("Achievements panel opened.", ChatManager.Sender.Tutor, true);
         }
     }
     
@@ -802,8 +773,15 @@ public class ChatTestUI : MonoBehaviour
         else
         {
             Debug.LogError("Failed to acquire AR camera image!");
-            UpdateChatHistory("Failed to acquire AR camera image", ChatManager.Sender.Tutor);
+            UpdateChatHistory("Failed to acquire AR camera image", ChatManager.Sender.Tutor, true);
         }
         yield break;
+    }
+
+    // 适配器方法，兼容事件签名
+    private void OnNewMessageReceivedAdapter(string message, ChatManager.Sender sender)
+    {
+        // 这里默认所有事件都是普通对话，通知类请单独调用UpdateChatHistory
+        UpdateChatHistory(message, sender, false);
     }
 }
