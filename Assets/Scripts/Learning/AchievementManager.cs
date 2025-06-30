@@ -249,9 +249,9 @@ public class AchievementManager : MonoBehaviour
         UpdateAchievementProgress("advanced", newLevel);
     }
     
-    private void OnNewMessage(string message, ChatManager.Sender sender)
+    private void OnNewMessage(string message, ChatManager.Sender sender, bool isNotification)
     {
-        // Only count user messages
+        // Only track user messages for conversation achievements
         if (sender == ChatManager.Sender.User)
         {
             // Update conversation achievements

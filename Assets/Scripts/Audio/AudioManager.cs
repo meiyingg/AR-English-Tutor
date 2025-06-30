@@ -331,6 +331,9 @@ public class AudioManager : MonoBehaviour
             return;
         }
 
+        // Stop any currently playing TTS
+        StopSpeaking();
+
         isProcessing = true;
         OnTTSStateChanged?.Invoke(true);
 
@@ -357,6 +360,7 @@ public class AudioManager : MonoBehaviour
         {
             isProcessing = false;
             OnTTSStateChanged?.Invoke(false);
+            if (ARTutorAnimatorController.Instance != null) ARTutorAnimatorController.Instance.SetTalking(false);
         }
     }
 
@@ -414,34 +418,30 @@ public class AudioManager : MonoBehaviour
     /// </summary>
     private async Task PlayTTSAudio(byte[] audioData)
     {
-        try
+        if (audioData == null || audioData.Length == 0)
         {
-            // 将MP3数据转换为AudioClip
-            AudioClip clip = await ConvertMP3ToAudioClip(audioData);
-            
-            if (clip != null)
-            {
-                audioSource.clip = clip;
-                audioSource.Play();
-                
-                Debug.Log($"? Playing TTS audio, duration: {clip.length:F1}s");
-                
-                // 等待播放完成
-                while (audioSource.isPlaying)
-                {
-                    await Task.Yield();
-                }
-                
-                Debug.Log("? TTS audio playback completed");
-            }
-            else
-            {
-                Debug.LogError("Failed to convert audio data to AudioClip");
-            }
+            Debug.LogError("No TTS audio data to play");
+            return;
         }
-        catch (System.Exception e)
+
+        AudioClip clip = await ConvertMP3ToAudioClip(audioData);
+        if (clip != null)
         {
-            Debug.LogError($"Error playing TTS audio: {e.Message}");
+            audioSource.clip = clip;
+            audioSource.Play();
+            if (ARTutorAnimatorController.Instance != null) ARTutorAnimatorController.Instance.SetTalking(true);
+
+            // Wait until the clip finishes playing
+            while (audioSource.isPlaying)
+            {
+                await Task.Yield();
+            }
+
+            // Animation will be stopped in the SpeakText's finally block
+        }
+        else
+        {
+            Debug.LogError("Failed to create AudioClip from TTS data.");
         }
     }
 
@@ -520,11 +520,16 @@ public class AudioManager : MonoBehaviour
     /// </summary>
     public void StopSpeaking()
     {
-        if (audioSource != null && audioSource.isPlaying)
+        if (audioSource.isPlaying)
         {
             audioSource.Stop();
-            OnTTSStateChanged?.Invoke(false);
-            Debug.Log("? TTS playback stopped");
+            Debug.Log("TTS playback stopped.");
+        }
+        
+        // Also ensure animation stops
+        if (ARTutorAnimatorController.Instance != null)
+        {
+            ARTutorAnimatorController.Instance.SetTalking(false);
         }
     }
 

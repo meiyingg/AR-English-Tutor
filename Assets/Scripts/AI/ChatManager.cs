@@ -13,7 +13,7 @@ public class ChatManager : MonoBehaviour
     public enum Sender { User, Tutor }
 
     [System.Serializable]
-    public class NewMessageEvent : UnityEvent<string, Sender> { }
+    public class NewMessageEvent : UnityEvent<string, Sender, bool> { }
     public NewMessageEvent onNewMessage;
     
     [System.Serializable]
@@ -48,7 +48,9 @@ public class ChatManager : MonoBehaviour
         currentSessionTurns++;
 
         // Add user message to UI immediately
-        onNewMessage.Invoke(text, Sender.User);
+        onNewMessage.Invoke(text, Sender.User, false);
+        
+        if (ARTutorAnimatorController.Instance != null) ARTutorAnimatorController.Instance.SetThinking(true);
         
         // TODO: Achievement integration - Enable after Unity setup
         // var achievementManager = FindObjectOfType<AchievementManager>();
@@ -60,12 +62,15 @@ public class ChatManager : MonoBehaviour
         // }
 
         string response = await OpenAIManager.Instance.PostRequest(messages);
+        
+        if (ARTutorAnimatorController.Instance != null) ARTutorAnimatorController.Instance.SetThinking(false);
 
         if (!string.IsNullOrEmpty(response))
         {
+            AnalyzeResponseAndPlayAnimation(response);
             var aiMessage = new ChatMessage { role = "assistant", content = response };
             messages.Add(aiMessage);
-            onNewMessage.Invoke(response, Sender.Tutor);
+            onNewMessage.Invoke(response, Sender.Tutor, false);
             
             // Award experience for each conversation turn
             if (LearningProgressManager.Instance != null)
@@ -84,7 +89,7 @@ public class ChatManager : MonoBehaviour
         }
         else
         {
-            onNewMessage.Invoke("Error: Could not get a response.", Sender.Tutor);
+            onNewMessage.Invoke("Error: Could not get a response.", Sender.Tutor, true);
         }
     }
 
@@ -94,10 +99,12 @@ public class ChatManager : MonoBehaviour
         string userDisplayMessage = string.IsNullOrEmpty(additionalText) 
             ? "? Image uploaded" 
             : $"? Image uploaded: {additionalText}";
-        onNewMessage.Invoke(userDisplayMessage, Sender.User);
+        onNewMessage.Invoke(userDisplayMessage, Sender.User, true);
         
         // Show analyzing message
-        onNewMessage.Invoke("Analyzing image...", Sender.Tutor);
+        onNewMessage.Invoke("Analyzing image...", Sender.Tutor, true);
+        
+        if (ARTutorAnimatorController.Instance != null) ARTutorAnimatorController.Instance.SetThinking(true);
         
         // Create prompt for image analysis
         string prompt = string.IsNullOrEmpty(additionalText) 
@@ -107,18 +114,21 @@ public class ChatManager : MonoBehaviour
         // Get AI response for the image
         string response = await OpenAIManager.Instance.PostVisionRequest(imageBase64, prompt);
         
+        if (ARTutorAnimatorController.Instance != null) ARTutorAnimatorController.Instance.SetThinking(false);
+        
         if (!string.IsNullOrEmpty(response))
         {
+            AnalyzeResponseAndPlayAnimation(response);
             // Add the image analysis to chat history
             var aiMessage = new ChatMessage { role = "assistant", content = response };
             messages.Add(aiMessage);
             
             // Replace the "Analyzing..." message with the actual response
-            onNewMessage.Invoke(response, Sender.Tutor);
+            onNewMessage.Invoke(response, Sender.Tutor, false);
         }
         else
         {
-            onNewMessage.Invoke("Sorry, I couldn't analyze the image. Please try again.", Sender.Tutor);
+            onNewMessage.Invoke("Sorry, I couldn't analyze the image. Please try again.", Sender.Tutor, true);
         }
     }
 
@@ -131,10 +141,12 @@ public class ChatManager : MonoBehaviour
         string userDisplayMessage = string.IsNullOrEmpty(additionalText) 
             ? "? Let's start an English lesson with this scene!" 
             : $"? Scene lesson: {additionalText}";
-        onNewMessage.Invoke(userDisplayMessage, Sender.User);
+        onNewMessage.Invoke(userDisplayMessage, Sender.User, true);
         
         // Show analyzing message
-        onNewMessage.Invoke("Looking at your image and preparing lesson...", Sender.Tutor);
+        onNewMessage.Invoke("Looking at your image and preparing lesson...", Sender.Tutor, true);
+        
+        if (ARTutorAnimatorController.Instance != null) ARTutorAnimatorController.Instance.SetThinking(true);
         
         // Get user's learning level to adjust difficulty
         string difficultyLevel = "beginner";
@@ -205,14 +217,17 @@ Example responses for {difficultyLevel}:";
         // Get AI response for scene recognition
         string response = await OpenAIManager.Instance.PostVisionRequest(imageBase64, scenePrompt);
         
+        if (ARTutorAnimatorController.Instance != null) ARTutorAnimatorController.Instance.SetThinking(false);
+        
         if (!string.IsNullOrEmpty(response))
         {
+            AnalyzeResponseAndPlayAnimation(response);
             // Add the scene analysis to chat history
             var aiMessage = new ChatMessage { role = "assistant", content = response };
             messages.Add(aiMessage);
             
             // Display the interactive lesson start
-            onNewMessage.Invoke(response, Sender.Tutor);
+            onNewMessage.Invoke(response, Sender.Tutor, false);
             
             // Award experience for starting a scene learning session
             if (LearningProgressManager.Instance != null)
@@ -222,7 +237,29 @@ Example responses for {difficultyLevel}:";
         }
         else
         {
-            onNewMessage.Invoke("Sorry, I couldn't see the image clearly. Could you try uploading it again?", Sender.Tutor);
+            onNewMessage.Invoke("Sorry, I couldn't see the image clearly. Could you try uploading it again?", Sender.Tutor, true);
         }
+    }
+
+    private void AnalyzeResponseAndPlayAnimation(string response)
+    {
+        if (ARTutorAnimatorController.Instance == null) return;
+
+        string lowerResponse = response.ToLower();
+
+        // if (lowerResponse.Contains("hello") || lowerResponse.Contains("hi") || lowerResponse.Contains("welcome"))
+        // {
+        //     ARTutorAnimatorController.Instance.PlayAnimation("Waving");
+        // }
+        // else if (lowerResponse.Contains("look") || lowerResponse.Contains("see") || lowerResponse.Contains("that"))
+        // {
+        //     ARTutorAnimatorController.Instance.PlayAnimation("PointingForward");
+        // }
+        // else if (lowerResponse.Contains("let's") || lowerResponse.Contains("ready"))
+        // {
+        //     ARTutorAnimatorController.Instance.PlayAnimation("BboyHipHopMove");
+        // }
+        // Add more animation triggers here based on keywords
+        
     }
 }

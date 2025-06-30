@@ -170,7 +170,7 @@ public class ChatTestUI : MonoBehaviour
         // Connect chat events
         if (ChatManager.Instance != null)
         {
-            ChatManager.Instance.onNewMessage.AddListener(OnNewMessageReceivedAdapter);
+            ChatManager.Instance.onNewMessage.AddListener(UpdateChatHistory);
             // Note: No longer subscribing to onNewImageMessage since we handle image messages as text messages
             Debug.Log("? Chat events connected");
         }
@@ -722,11 +722,16 @@ public class ChatTestUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Unsubscribe from AudioManager events to prevent memory leaks
+        // Unsubscribe from events to prevent memory leaks
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.OnRecordingStateChanged -= OnRecordingStateChanged;
             AudioManager.Instance.OnSpeechToTextResult -= OnTranscriptionReceived;
+        }
+
+        if (ChatManager.Instance != null)
+        {
+            ChatManager.Instance.onNewMessage.RemoveListener(UpdateChatHistory);
         }
     }
     
@@ -776,12 +781,5 @@ public class ChatTestUI : MonoBehaviour
             UpdateChatHistory("Failed to acquire AR camera image", ChatManager.Sender.Tutor, true);
         }
         yield break;
-    }
-
-    // 适配器方法，兼容事件签名
-    private void OnNewMessageReceivedAdapter(string message, ChatManager.Sender sender)
-    {
-        // 这里默认所有事件都是普通对话，通知类请单独调用UpdateChatHistory
-        UpdateChatHistory(message, sender, false);
     }
 }
