@@ -17,6 +17,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
+using System.Collections.Generic;
+using System.Text; // 添加StringBuilder命名空间
+using System.Linq; // 添加LINQ命名空间
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using Unity.Collections;
@@ -36,15 +39,22 @@ public class ChatTestUI : MonoBehaviour
     public Button sendButton;
     public Button imageButton; // New image upload button
     public Button recordButton; // New voice recording button
-    public Button takePhotoButton; // 新增：拍照按钮
+    public Button takePhotoButton; // New: take photo button
+    public Button agentButton; // New: agent button for voice recording with AR scene awareness
     public GameObject screenSpaceMessagePrefab; // The original chat bubble for screen space
     public GameObject worldSpaceMessagePrefab; // Your new ChatMessage_Realworld prefab
     public Transform chatContentPanel; // Legacy screen-space container
+    
+    [Header("Scene Awareness")]
+    [Tooltip("Whether to auto-initialize the background scene monitoring")]
+    public bool enableSceneAwareness = true;
+    [Tooltip("Whether to capture a scene when starting voice recording via agent button")]
+    public bool captureSceneOnAgentRecord = true;
 
     [Header("Chat Panel Control")]
-    public GameObject chatPanel; // Chat面板的根GameObject
-    public Button toggleChatButton; // 控制显示/隐藏的按钮
-    private bool isChatPanelVisible = false; // 面板显示状态 - 默认隐藏
+    public GameObject chatPanel; // Chat panel root GameObject
+    public Button toggleChatButton; // Button to control show/hide
+    private bool isChatPanelVisible = false; // Panel visibility state - hidden by default
 
     [Header("Speech Features")]
     public Color recordingColor = Color.red;
@@ -95,6 +105,16 @@ public class ChatTestUI : MonoBehaviour
 
         Debug.Log("? ChatTestUI: Starting...");
         
+        // 配置所有文本组件以支持富文本和表情符号
+        ConfigureTextComponents();
+        
+        // Initialize background scene monitoring if enabled
+        if (enableSceneAwareness && BackgroundSceneMonitor.Instance != null)
+        {
+            BackgroundSceneMonitor.Instance.StartMonitoring();
+            Debug.Log("? Scene awareness active - AI can now 'see' the environment");
+        }
+        
         // Connect send button
         if (sendButton != null)
         {
@@ -126,6 +146,17 @@ public class ChatTestUI : MonoBehaviour
         else
         {
             Debug.LogWarning("?? Record button not assigned in Inspector. Please drag RecordButton to the 'Record Button' field in ChatTestUI component.");
+        }
+        
+        // Connect agent button (smart voice assistant with AR awareness)
+        if (agentButton != null)
+        {
+            agentButton.onClick.AddListener(OnAgentButtonClick);
+            Debug.Log("? Agent button connected");
+        }
+        else
+        {
+            Debug.LogWarning("?? Agent button not assigned in Inspector. Please drag AgentButton to the AgentButton field in ChatTestUI component.");
         }
         
         // Connect take photo button
@@ -202,6 +233,15 @@ public class ChatTestUI : MonoBehaviour
         
         // Initialize Learning Progress UI
         InitializeLearningProgressUI();
+        
+        // 自动开始场景监控（如果启用）
+        if (enableSceneAwareness)
+        {
+            StartBackgroundSceneMonitoring();
+        }
+        
+        // Configure TextMeshPro components for rich text and emoji support
+        ConfigureTextComponents();
         
         Debug.Log("? ChatTestUI: Setup complete");
     }
@@ -282,13 +322,6 @@ public class ChatTestUI : MonoBehaviour
             recordButtonImage.color = recordingColor;
         }
         
-        // Update button text
-        TextMeshProUGUI buttonText = recordButton.GetComponentInChildren<TextMeshProUGUI>();
-        if (buttonText != null)
-        {
-            buttonText.text = "STOP";
-        }
-        
         // Start recording via AudioManager
         AudioManager.Instance.StartRecording();
         
@@ -318,13 +351,6 @@ public class ChatTestUI : MonoBehaviour
             recordButtonImage.color = normalRecordButtonColor;
         }
         
-        // Reset button text
-        TextMeshProUGUI buttonText = recordButton.GetComponentInChildren<TextMeshProUGUI>();
-        if (buttonText != null)
-        {
-            buttonText.text = "?";
-        }
-        
         // Re-enable UI
         SetUIInteractable(true);
     }
@@ -344,7 +370,7 @@ public class ChatTestUI : MonoBehaviour
         }
     }
     
-    private void OnTranscriptionReceived(string transcription)
+    private async void OnTranscriptionReceived(string transcription)
     {
         Debug.Log($"Transcription received: {transcription}");
         
@@ -354,17 +380,83 @@ public class ChatTestUI : MonoBehaviour
             inputField.text = transcription;
         }
         
-        // Automatically send the transcribed message (don't show duplicate message)
-        OnSendButtonClick();
+        // Get the latest scene context (if available and AgentButton was used)
+        bool useSceneContext = false;
+        BackgroundSceneMonitor.SceneMemory latestScene = null;
         
-        ResetRecordButton();
+        if (agentButton?.gameObject.activeInHierarchy == true && 
+            captureSceneOnAgentRecord && 
+            BackgroundSceneMonitor.Instance != null)
+        {
+            latestScene = BackgroundSceneMonitor.Instance.GetLatestScene();
+            useSceneContext = (latestScene != null && !string.IsNullOrEmpty(latestScene.base64Image));
+        }
+        
+        // Disable UI during processing
+        SetUIInteractable(false);
+        
+        // Use scene-aware message or regular message
+        if (useSceneContext && ChatManager.Instance != null)
+        {
+            // Send with scene context
+            await ChatManager.Instance.SendSceneRecognitionRequest(
+                latestScene.base64Image,
+                latestScene.texture, 
+                transcription);
+        }
+        else
+        {
+            // Regular text message
+            if (ChatManager.Instance != null)
+            {
+                await ChatManager.Instance.SendMessage(transcription);
+            }
+        }
+        
+        // Clear input field
+        if (inputField != null)
+        {
+            inputField.text = "";
+        }
+        
+        // Reset buttons based on which one was active
+        if (isRecording)
+        {
+            if (agentButton?.gameObject.activeInHierarchy == true)
+            {
+                ResetAgentButton();
+            }
+            else
+            {
+                ResetRecordButton();
+            }
+        }
+        
+        // Re-enable UI
+        SetUIInteractable(true);
+        if (inputField != null)
+        {
+            inputField.ActivateInputField();
+        }
     }
     
     private void OnSpeechError(string error)
     {
         Debug.LogError($"Speech error: {error}");
         UpdateChatHistory($"Speech recognition error: {error}", ChatManager.Sender.Tutor);
-        ResetRecordButton();
+        
+        // Reset buttons based on which one was active
+        if (isRecording)
+        {
+            if (agentButton?.gameObject.activeInHierarchy == true)
+            {
+                ResetAgentButton();
+            }
+            else
+            {
+                ResetRecordButton();
+            }
+        }
     }
     
     private void TestSceneRecognition()
@@ -458,6 +550,8 @@ public class ChatTestUI : MonoBehaviour
             imageButton.interactable = interactable;
         if (recordButton != null)
             recordButton.interactable = interactable;
+        if (agentButton != null)
+            agentButton.interactable = interactable;
     }
     
     private void UpdateChatHistory(string message, ChatManager.Sender sender, bool isNotification = false)
@@ -736,14 +830,46 @@ public class ChatTestUI : MonoBehaviour
     {
         if (systemNotificationPanel != null && systemNotificationText != null)
         {
+            systemNotificationText.richText = true;
+            systemNotificationText.parseCtrlCharacters = true;
+            
             UserProfile profile = LearningProgressManager.Instance.userProfile;
-            systemNotificationText.text = $"*** LEVEL UP! ***\n\nYou are now Level {newLevel}\n({profile.GetLevelTitle()})";
-            systemNotificationText.color = profile.GetLevelColor();
+            Color levelColor = profile.GetLevelColor();
+            string colorHex = ColorUtility.ToHtmlStringRGB(levelColor);
+            
+            // 重新设计的升级通知，更简洁大方
+            StringBuilder levelUpText = new StringBuilder();
+            levelUpText.AppendLine("<size=30><color=#FFD700><b>LEVEL UP!</b></color></size>");
+            
+            // 创建一个简单的分隔线
+            levelUpText.AppendLine("<size=26>-----------</size>");
+            
+            // 突出显示新等级和头衔
+            levelUpText.AppendLine($"<size=34><color=#{colorHex}><b>{newLevel}</b></color></size>");
+            levelUpText.AppendLine($"<size=26><i>\"{profile.GetLevelTitle()}\"</i></size>");
+            
+            // 添加一些鼓励性的消息
+            string[] encouragements = new string[] {
+                "Great progress! Keep going!",
+                "You're getting better every day!",
+                "Keep up the good work!",
+                "Your skills are growing!",
+                "Well done! Continue learning!"
+            };
+            
+            // 随机选择一条鼓励消息
+            string encouragement = encouragements[UnityEngine.Random.Range(0, encouragements.Length)];
+            levelUpText.AppendLine($"<size=22><color=#E0E0E0>{encouragement}</color></size>");
+            
+            systemNotificationText.text = levelUpText.ToString();
+            systemNotificationText.color = Color.white;
             systemNotificationPanel.SetActive(true);
-            // 3秒后自动关闭（可选）
-            Invoke(nameof(CloseSystemNotificationPanel), 3f);
-            // 聊天窗口也显示升级消息，但不TTS
-            UpdateChatHistory($"LEVEL UP! You are now Level {newLevel} ({profile.GetLevelTitle()})", ChatManager.Sender.Tutor, true);
+            
+            // 4秒后自动关闭
+            Invoke(nameof(CloseSystemNotificationPanel), 4f);
+            
+            // 聊天窗口显示简洁的升级消息
+            UpdateChatHistory($"Level Up! You are now Level {newLevel}: {profile.GetLevelTitle()}", ChatManager.Sender.Tutor, true);
         }
     }
     
@@ -755,22 +881,7 @@ public class ChatTestUI : MonoBehaviour
         }
     }
     
-    // 显示成就解锁通知
-    public void ShowAchievementUnlocked(Achievement achievement)
-    {
-        if (systemNotificationPanel != null && systemNotificationText != null)
-        {
-            systemNotificationText.text = $"*** ACHIEVEMENT UNLOCKED! ***\n\n{achievement.title}\n\n{achievement.description}\n\nReward: +{achievement.rewardExp} EXP";
-            systemNotificationText.color = Color.yellow;
-            systemNotificationPanel.SetActive(true);
-            Invoke(nameof(CloseSystemNotificationPanel), 5f);
-            Debug.Log($"Achievement notification shown: {achievement.title}");
-            // 聊天窗口也显示成就消息，但不TTS
-            UpdateChatHistory($"ACHIEVEMENT UNLOCKED! {achievement.title}: {achievement.description}", ChatManager.Sender.Tutor, true);
-        }
-    }
-    
-    // 显示成就列表（切换功能）
+    // 重新设计的成就展示界面，更简洁美观
     public void ShowAchievements()
     {
         if (systemNotificationPanel != null && systemNotificationText != null)
@@ -780,11 +891,122 @@ public class ChatTestUI : MonoBehaviour
                 systemNotificationPanel.SetActive(false);
                 return;
             }
-            systemNotificationText.text = "*** ACHIEVEMENTS ***\n\nClick any message to unlock achievements!\n\nAVAILABLE GOALS:\n[LOCK] Ice Breaker - Send first message\n[LOCK] Chat Master - Have 10 conversations\n[LOCK] EXP Collector - Earn 100 experience\n[LOCK] Rising Star - Reach level 3\n\nStart chatting to unlock achievements!\n\nPROGRESS: 0/15 achievements unlocked";
+
+            systemNotificationText.richText = true;
+            systemNotificationText.parseCtrlCharacters = true;
+
+            StringBuilder achievementText = new StringBuilder();
+            achievementText.AppendLine("<size=30><color=#FFD700><b>= ACHIEVEMENTS =</b></color></size>");
+            
+            int total = 0, unlocked = 0;
+            if (AchievementManager.Instance != null && AchievementManager.Instance.achievements != null)
+            {
+                var achievements = AchievementManager.Instance.achievements;
+                total = achievements.Count;
+                unlocked = achievements.Count(a => a.isUnlocked);
+                
+                // 顶部显示解锁进度
+                achievementText.AppendLine($"<size=20><color=#E0E0E0>Unlocked: <color=#32CD32>{unlocked}</color> / <color=#FFD700>{total}</color></color></size>");
+                achievementText.AppendLine("<size=22>---------------------</size>");
+                
+                // 按类型分组
+                foreach (AchievementType type in System.Enum.GetValues(typeof(AchievementType)))
+                {
+                    var typeAchievements = achievements.Where(a => a.type == type).ToList();
+                    if (typeAchievements.Count > 0)
+                    {
+                        // 添加类别标题
+                        achievementText.AppendLine($"<size=24><color=#00BFFF><b>[ {type} ]</b></color></size>");
+                        
+                        // 添加该类型的成就，使用表格布局
+                        foreach (var a in typeAchievements)
+                        {
+                            string status = a.isUnlocked 
+                                ? "<color=#32CD32><b>[?]</b></color>" 
+                                : "<color=#A0A0A0>[·]</color>";
+                                
+                            string titleColor = a.isUnlocked ? "#FFFFFF" : "#A0A0A0";
+                            
+                            // 成就标题行（带状态和经验值）
+                            achievementText.AppendLine($"{status} <color={titleColor}><b>{a.title}</b></color> <color=#00FF00>+{a.rewardExp}xp</color>");
+                            
+                            // 只为已解锁的成就显示描述
+                            if (a.isUnlocked)
+                            {
+                                achievementText.AppendLine($"    <size=18><i>{a.description}</i></size>");
+                            }
+                        }
+                        
+                        achievementText.AppendLine();
+                    }
+                }
+                
+                // 底部显示总结信息
+                if (unlocked == total && total > 0)
+                {
+                    achievementText.AppendLine("<color=#FFD700><b>All achievements unlocked!</b></color>");
+                }
+                else if (unlocked == 0)
+                {
+                    achievementText.AppendLine("<i>Start chatting to unlock achievements</i>");
+                }
+            }
+            else
+            {
+                achievementText.AppendLine("<i>Achievement system is initializing...</i>");
+            }
+            
+            systemNotificationText.text = achievementText.ToString();
             systemNotificationText.color = Color.white;
             systemNotificationPanel.SetActive(true);
-            // 聊天窗口也显示成就列表，但不TTS
             UpdateChatHistory("Achievements panel opened.", ChatManager.Sender.Tutor, true);
+        }
+    }
+
+    // 重新设计的成就解锁通知，更简洁清晰
+    public void ShowAchievementUnlocked(Achievement achievement)
+    {
+        if (systemNotificationPanel != null && systemNotificationText != null)
+        {
+            systemNotificationText.richText = true;
+            systemNotificationText.parseCtrlCharacters = true;
+            
+            // 根据成就类型选择颜色
+            string typeColor;
+            switch (achievement.type)
+            {
+                case AchievementType.Conversation: typeColor = "#6495ED"; break; // 蓝色
+                case AchievementType.Learning: typeColor = "#9370DB"; break;     // 紫色
+                case AchievementType.Experience: typeColor = "#FFD700"; break;   // 金色
+                case AchievementType.Level: typeColor = "#20B2AA"; break;        // 青色
+                case AchievementType.Special: typeColor = "#FF6347"; break;      // 红色
+                default: typeColor = "#FFD700"; break;                           // 默认金色
+            }
+            
+            StringBuilder notificationText = new StringBuilder();
+            
+            // 简洁大标题
+            notificationText.AppendLine("<size=26><color=#FFD700><b>ACHIEVEMENT</b></color></size>");
+            
+            // 突出显示成就标题，使用成就类型的颜色
+            notificationText.AppendLine($"<size=30><color={typeColor}><b>{achievement.title}</b></color></size>");
+            
+            // 成就类型和描述
+            notificationText.AppendLine($"<size=18><i><color=#C0C0C0>{achievement.type}</color></i></size>");
+            notificationText.AppendLine($"<size=22>{achievement.description}</size>");
+            
+            // 醒目显示奖励
+            notificationText.AppendLine($"<size=24><color=#00FF00><b>+{achievement.rewardExp} EXP</b></color></size>");
+            
+            systemNotificationText.text = notificationText.ToString();
+            systemNotificationText.color = Color.white;
+            systemNotificationPanel.SetActive(true);
+            Invoke(nameof(CloseSystemNotificationPanel), 4f); // 缩短显示时间为4秒
+            
+            Debug.Log($"Achievement notification shown: {achievement.title}");
+            
+            // 聊天窗口消息也简化
+            UpdateChatHistory($"Achievement: {achievement.title} (+{achievement.rewardExp} EXP)", ChatManager.Sender.Tutor, true);
         }
     }
     
@@ -811,6 +1033,12 @@ public class ChatTestUI : MonoBehaviour
         if (ChatManager.Instance != null)
         {
             ChatManager.Instance.onNewMessage.RemoveListener(UpdateChatHistory);
+        }
+        
+        // Stop background scene monitoring if we started it
+        if (enableSceneAwareness && BackgroundSceneMonitor.Instance != null)
+        {
+            BackgroundSceneMonitor.Instance.StopMonitoring();
         }
     }
     
@@ -864,5 +1092,137 @@ public class ChatTestUI : MonoBehaviour
     {
         worldSpaceChatContainer = container;
         Debug.Log("[ChatTestUI] SetWorldSpaceChatContainer called, container: " + (container != null ? container.name : "null"));
+    }
+
+    private void OnAgentButtonClick()
+    {
+        if (AudioManager.Instance == null)
+        {
+            Debug.LogWarning("AudioManager not found! Please add AudioManager to the scene.");
+            UpdateChatHistory("Speech feature unavailable. Please check AudioManager setup.", ChatManager.Sender.Tutor);
+            return;
+        }
+
+        if (!isRecording)
+        {
+            StartAgentRecording();
+        }
+        else
+        {
+            StopAgentRecording();
+        }
+    }
+    
+    private void StartAgentRecording()
+    {
+        Debug.Log("Starting AI agent voice recording...");
+        isRecording = true;
+        
+        // Change button color to indicate recording
+        Image agentButtonImage = agentButton?.GetComponent<Image>();
+        if (agentButtonImage != null)
+        {
+            agentButtonImage.color = recordingColor;
+        }
+        
+        // Capture current scene if enabled (gives AI context of what user is looking at)
+        if (captureSceneOnAgentRecord && BackgroundSceneMonitor.Instance != null)
+        {
+            BackgroundSceneMonitor.Instance.CaptureScene();
+            Debug.Log("Scene captured for AI context");
+        }
+        
+        // Start recording via AudioManager
+        AudioManager.Instance.StartRecording();
+        
+        // Disable other UI during recording
+        SetUIInteractable(false);
+        if (agentButton != null)
+        {
+            agentButton.interactable = true; // Keep agent button active to stop recording
+        }
+    }
+    
+    private void StopAgentRecording()
+    {
+        Debug.Log("Stopping AI agent voice recording...");
+        
+        // Stop recording via AudioManager
+        AudioManager.Instance.StopRecording();
+        
+        ResetAgentButton();
+    }
+    
+    private void ResetAgentButton()
+    {
+        isRecording = false;
+        
+        // Reset button color
+        Image agentButtonImage = agentButton?.GetComponent<Image>();
+        if (agentButtonImage != null)
+        {
+            agentButtonImage.color = normalRecordButtonColor;
+        }
+        
+        // Re-enable UI
+        SetUIInteractable(true);
+    }
+
+    private void StartBackgroundSceneMonitoring()
+    {
+        Debug.Log("Starting background scene monitoring...");
+        // Here you would typically start any background services or monitoring needed
+        // For example, starting a coroutine that checks the scene at intervals
+        StartCoroutine(BackgroundSceneMonitoringCoroutine());
+    }
+
+    private IEnumerator BackgroundSceneMonitoringCoroutine()
+    {
+        while (true)
+        {
+            // Check if the AR session is running
+            if (ARSession.state == ARSessionState.SessionTracking)
+            {
+                // Perform scene monitoring tasks
+                Debug.Log("Monitoring scene...");
+                
+                // Example: You could check for specific objects in the scene, 
+                // or monitor the camera's position/rotation for adjustments
+            }
+            
+            // Wait for a short duration before the next check
+            yield return new WaitForSeconds(5f);
+        }
+    }
+
+    /// <summary>
+    /// 配置所有TextMeshPro组件以支持富文本和表情符号
+    /// </summary>
+    private void ConfigureTextComponents()
+    {
+        // 确保系统通知文本支持富文本和表情符号
+        if (systemNotificationText != null)
+        {
+            systemNotificationText.richText = true;
+            systemNotificationText.parseCtrlCharacters = true;
+            Debug.Log("System notification text configured for rich text and emoji support");
+        }
+        
+        // 其他可能需要配置的TextMeshPro组件
+        if (levelText != null) levelText.richText = true;
+        if (expText != null) expText.richText = true;
+        
+        // 查找画布中的其他TextMeshPro组件并配置它们
+        TextMeshProUGUI[] allTexts = FindObjectsOfType<TextMeshProUGUI>();
+        foreach (var text in allTexts)
+        {
+            if (text != null)
+            {
+                text.richText = true;
+                text.parseCtrlCharacters = true;
+            }
+        }
+        
+        Debug.Log($"Configured {(allTexts != null ? allTexts.Length : 0)} TextMeshPro components for rich text and emoji support");
     }
 }

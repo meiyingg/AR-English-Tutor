@@ -78,6 +78,16 @@ public class ARManager : MonoBehaviour
         // Early exit if tutor is already placed
         if (placedTutorInstance != null)
         {
+            // 持续更新模型朝向，始终面向相机
+            UpdateTutorOrientation();
+            
+            // 每10秒记录一次状态，确保朝向更新正常工作
+            if (Time.frameCount % 600 == 0 && DebugPanel.Instance != null)
+            {
+                DebugPanel.Instance.Log("Tutor active and facing camera - Position: " + 
+                    placedTutorInstance.transform.position.ToString("F1") + 
+                    " Rotation: " + placedTutorInstance.transform.eulerAngles.ToString("F1"));
+            }
             return;
         }
 
@@ -293,8 +303,9 @@ public class ARManager : MonoBehaviour
                     DebugPanel.Instance.Log("Instantiating tutor at " + hitPose.position.ToString("F2"));
                 }
                     
-                // Try to instantiate with parent = null explicitly
-                placedTutorInstance = Instantiate(tutorPrefab, hitPose.position, hitPose.rotation, null);
+                // 实例化模型但不使用hitPose的旋转，我们会在之后手动设置朝向
+                // 这样可以避免AR平面的旋转影响模型初始朝向
+                placedTutorInstance = Instantiate(tutorPrefab, hitPose.position, Quaternion.identity, null);
                 
                 if (placedTutorInstance != null)
                 {
@@ -348,9 +359,20 @@ public class ARManager : MonoBehaviour
         if (DebugPanel.Instance != null)
             DebugPanel.Instance.Log("Initializing tutor...");
             
-        // Make the tutor look at the user (without tilting up/down)
-        Vector3 lookAtPosition = new Vector3(Camera.main.transform.position.x, tutorInstance.transform.position.y, Camera.main.transform.position.z);
-        tutorInstance.transform.LookAt(lookAtPosition);
+        // 确保初始化时Tutor立即面向用户
+        if (Camera.main != null)
+        {
+            // 计算正确的面向方向（只在水平面旋转，不倾斜）
+            Vector3 cameraPosition = Camera.main.transform.position;
+            Vector3 tutorPosition = tutorInstance.transform.position;
+            Vector3 lookAtPosition = new Vector3(cameraPosition.x, tutorPosition.y, cameraPosition.z);
+            
+            // 直接使用LookAt确保正面朝向用户
+            tutorInstance.transform.LookAt(lookAtPosition);
+            
+            if (DebugPanel.Instance != null)
+                DebugPanel.Instance.Log("Tutor oriented toward camera at " + lookAtPosition.ToString("F2"));
+        }
 
         // Play the waving animation by default
         var animatorController = tutorInstance.GetComponent<ARTutorAnimatorController>();
@@ -382,5 +404,50 @@ public class ARManager : MonoBehaviour
         
         if (DebugPanel.Instance != null)
             DebugPanel.Instance.Log("Tutor initialization complete");
+    }
+
+    /// <summary>
+    /// Updates the tutor's orientation to always face the camera.
+    /// This ensures the 3D model always looks at the user regardless of camera movement.
+    /// </summary>
+    private void UpdateTutorOrientation()
+    {
+        if (placedTutorInstance == null || Camera.main == null)
+            return;
+            
+        // 获取模型和相机的位置
+        Vector3 tutorPosition = placedTutorInstance.transform.position;
+        Vector3 cameraPosition = Camera.main.transform.position;
+        
+        // 创建一个只考虑水平方向的目标位置（保持Y轴不变，避免模型倾斜）
+        Vector3 lookAtPosition = new Vector3(cameraPosition.x, tutorPosition.y, cameraPosition.z);
+        
+        // 计算从模型到相机的方向向量
+        Vector3 directionToCamera = lookAtPosition - tutorPosition;
+        
+        // 如果距离太小，可能会导致旋转不稳定，因此添加一个检查
+        if (directionToCamera.sqrMagnitude < 0.001f)
+            return;
+            
+        // 立即转向相机方向（无过渡动画）- 确保AR体验中模型始终面向用户
+        // 对于需要平滑过渡的情况，可以使用下面注释掉的代码
+        placedTutorInstance.transform.LookAt(lookAtPosition);
+        
+        /* 平滑旋转版本 - 如果需要平滑过渡，可以取消这段注释
+        // 计算目标旋转
+        Quaternion targetRotation = Quaternion.LookRotation(directionToCamera);
+        
+        // 平滑旋转模型，使其面向相机（使用Slerp实现平滑过渡）
+        placedTutorInstance.transform.rotation = Quaternion.Slerp(
+            placedTutorInstance.transform.rotation, 
+            targetRotation, 
+            Time.deltaTime * 8.0f); // 8.0f是旋转速度，提高以加快响应速度
+        */
+        
+        // 记录日志（仅在调试时打开，避免日志过多）
+        if (Time.frameCount % 300 == 0 && DebugPanel.Instance != null) // 每300帧记录一次
+        {
+            DebugPanel.Instance.Log("Updating tutor orientation - facing camera");
+        }
     }
 }

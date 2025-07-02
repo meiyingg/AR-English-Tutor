@@ -1293,7 +1293,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: 155}
+  m_AnchoredPosition: {x: 0, y: 278}
   m_SizeDelta: {x: 129.2681, y: 132.92004}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &284045083
@@ -1649,7 +1649,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Close
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1893,11 +1893,11 @@ RectTransform:
   - {fileID: 411471872}
   m_Father: {fileID: 1649948601}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 436, y: 471}
+  m_AnchorMin: {x: 1, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 64, y: 64}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 1, y: 1}
 --- !u!114 &422464573
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2472,6 +2472,55 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: -20, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &551639644
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 551639646}
+  - component: {fileID: 551639645}
+  m_Layer: 0
+  m_Name: BackgroundSceneMonitor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &551639645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 551639644}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8ec4fab160f91845aba2bffe01408cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  captureInterval: 5
+  resolutionScale: 0.5
+  startAutomatically: 1
+  pauseWhenInBackground: 1
+  pauseOnLowBattery: 1
+--- !u!4 &551639646
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 551639644}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 509.79498, y: 1191.3652, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &623106401
 GameObject:
   m_ObjectHideFlags: 0
@@ -2558,6 +2607,7 @@ GameObject:
   - component: {fileID: 632927622}
   - component: {fileID: 632927624}
   - component: {fileID: 632927623}
+  - component: {fileID: 632927625}
   m_Layer: 5
   m_Name: Image
   m_TagString: Untagged
@@ -2597,7 +2647,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 1, b: 0.982023, a: 1}
+  m_Color: {r: 0, g: 1, b: 0.706254, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -2622,6 +2672,25 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 632927621}
   m_CullTransparentMesh: 1
+--- !u!114 &632927625
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 632927621}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83594bd975dd9f04bb0cd4277aee2bec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isActive: 1
+  colorChangeSpeed: 1
+  colorSaturation: 0.8
+  colorBrightness: 0.8
+  breathingSpeed: 1.5
+  minAlpha: 0.6
+  maxAlpha: 1
 --- !u!1 &695909660
 GameObject:
   m_ObjectHideFlags: 0
@@ -5184,8 +5253,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -36.942505, y: 162.77148}
-  m_SizeDelta: {x: 961.0694, y: 962.3077}
+  m_AnchoredPosition: {x: 10.161, y: 114.144}
+  m_SizeDelta: {x: 989.54, y: 1512.2468}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1649948602
 MonoBehaviour:
@@ -5207,7 +5276,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: d8b12beed994cee4d8af7d172e43f10b, type: 3}
+  m_Sprite: {fileID: 21300000, guid: df907364b2f77e94dba121c1033e7e74, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -5453,10 +5522,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1649948601}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 3, y: -32}
-  m_SizeDelta: {x: 876.293, y: 756.3887}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: -18.929962, y: 8.14209}
+  m_SizeDelta: {x: -94.855, y: -73.2798}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1723074752
 MonoBehaviour:
@@ -5478,10 +5547,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: New Text
+  m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 2e498d1c8094910479dc3e1b768306a4, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 2e498d1c8094910479dc3e1b768306a4, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -6857,9 +6926,12 @@ MonoBehaviour:
   imageButton: {fileID: 213687472}
   recordButton: {fileID: 1653977502}
   takePhotoButton: {fileID: 1114040584}
+  agentButton: {fileID: 284045083}
   screenSpaceMessagePrefab: {fileID: 8547252684658685669, guid: f8d853b6ddb20e3419c9f4075f267c36, type: 3}
   worldSpaceMessagePrefab: {fileID: 3121634627280119937, guid: 9a4e7783442633140933d0e24db3c013, type: 3}
   chatContentPanel: {fileID: 1510564869}
+  enableSceneAwareness: 1
+  captureSceneOnAgentRecord: 1
   chatPanel: {fileID: 1856291638}
   toggleChatButton: {fileID: 38814349}
   recordingColor: {r: 1, g: 0, b: 0, a: 1}
@@ -6931,3 +7003,4 @@ SceneRoots:
   - {fileID: 261576519}
   - {fileID: 442033690}
   - {fileID: 1392337323}
+  - {fileID: 551639646}
