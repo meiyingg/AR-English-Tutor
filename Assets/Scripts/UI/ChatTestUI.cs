@@ -21,6 +21,7 @@ using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using Unity.Collections;
 using System.Collections.Generic;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Main UI Manager for AR English Learning App
@@ -28,19 +29,22 @@ using System.Collections.Generic;
 /// </summary>
 public class ChatTestUI : MonoBehaviour
 {
+    public static ChatTestUI Instance { get; private set; }
+
+    [Header("UI References")]
     public TMP_InputField inputField;
     public Button sendButton;
     public Button imageButton; // New image upload button
     public Button recordButton; // New voice recording button
     public Button takePhotoButton; // 新增：拍照按钮
-    public GameObject chatMessagePrefab; // 我们将实例化的消息预制体
-    public GameObject imageMessagePrefab; // New prefab for image messages
-    public Transform chatContentPanel; // ScrollView的Content对象
+    public GameObject screenSpaceMessagePrefab; // The original chat bubble for screen space
+    public GameObject worldSpaceMessagePrefab; // Your new ChatMessage_Realworld prefab
+    public Transform chatContentPanel; // Legacy screen-space container
 
     [Header("Chat Panel Control")]
     public GameObject chatPanel; // Chat面板的根GameObject
     public Button toggleChatButton; // 控制显示/隐藏的按钮
-    private bool isChatPanelVisible = true; // 面板显示状态
+    private bool isChatPanelVisible = false; // 面板显示状态 - 默认隐藏
 
     [Header("Speech Features")]
     public Color recordingColor = Color.red;
@@ -68,10 +72,27 @@ public class ChatTestUI : MonoBehaviour
     private float targetExpProgress = 0f;
     private bool isAnimatingExp = false;
 
-    public ARCameraManager arCameraManager; // Drag ARCameraManager from AR Camera here in Inspector
+    private Transform worldSpaceChatContainer; // New world-space container
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
 
     void Start()
     {
+        #if UNITY_EDITOR
+        // For easier testing in the editor, automatically find and initialize a pre-placed tutor.
+        FindAndInitializePrePlacedTutor();
+        #endif
+
         Debug.Log("? ChatTestUI: Starting...");
         
         // Connect send button
@@ -148,7 +169,7 @@ public class ChatTestUI : MonoBehaviour
         }
 
         // Check required prefabs
-        if (chatMessagePrefab != null)
+        if (screenSpaceMessagePrefab != null)
         {
             Debug.Log("? Chat message prefab assigned");
         }
@@ -157,8 +178,8 @@ public class ChatTestUI : MonoBehaviour
             Debug.LogError("? Chat message prefab not assigned in Inspector!");
         }
         
-        // imageMessagePrefab is optional for now
-        if (imageMessagePrefab != null)
+        // worldSpaceMessagePrefab is optional for now
+        if (worldSpaceMessagePrefab != null)
         {
             Debug.Log("? Image message prefab assigned (future feature)");
         }
@@ -184,6 +205,26 @@ public class ChatTestUI : MonoBehaviour
         
         Debug.Log("? ChatTestUI: Setup complete");
     }
+
+    #if UNITY_EDITOR
+    private void FindAndInitializePrePlacedTutor()
+    {
+        var arManager = FindObjectOfType<ARManager>();
+        if (arManager == null) return;
+
+        var existingTutor = GameObject.Find(arManager.tutorPrefab.name);
+        if (existingTutor == null)
+        {
+            existingTutor = GameObject.Find(arManager.tutorPrefab.name + "(Clone)");
+        }
+
+        if (existingTutor != null)
+        {
+            Debug.Log("Found pre-placed tutor in Editor. Initializing for testing.");
+            arManager.InitializeTutor(existingTutor);
+        }
+    }
+    #endif
 
     private async void OnSendButtonClick()
     {
@@ -421,26 +462,81 @@ public class ChatTestUI : MonoBehaviour
     
     private void UpdateChatHistory(string message, ChatManager.Sender sender, bool isNotification = false)
     {
-        GameObject messageRow = Instantiate(chatMessagePrefab);
-        messageRow.transform.SetParent(chatContentPanel, false);
-        ChatMessageUI messageUI = messageRow.GetComponent<ChatMessageUI>();
+        // --- 1. Always create the message in the screen-space chat history panel ---
+        if (chatContentPanel != null && screenSpaceMessagePrefab != null)
+        {
+            GameObject historyMessageRow = Instantiate(screenSpaceMessagePrefab);
+            historyMessageRow.transform.SetParent(chatContentPanel, false);
+            SetupChatMessage(historyMessageRow, message, sender);
+        }
+
+        // --- 2. If it's the Tutor's response in AR mode, also create a world-space bubble (not for notifications) ---
+        bool isTutorInAR = sender == ChatManager.Sender.Tutor && !isNotification && worldSpaceChatContainer != null && worldSpaceMessagePrefab != null;
+        if (isTutorInAR)
+        {
+            // 1. 先把所有旧气泡颜色改为白色
+            foreach (Transform child in worldSpaceChatContainer)
+            {
+                var img = child.GetComponentInChildren<Image>();
+                if (img != null)
+                    img.color = Color.white;
+            }
+
+            // 2. 生成新气泡
+            GameObject worldMessageRow = Instantiate(worldSpaceMessagePrefab);
+            worldMessageRow.transform.SetParent(worldSpaceChatContainer, false);
+            SetupChatMessage(worldMessageRow, message, sender);
+
+            // 3. 强制新气泡为绿色
+            var newImg = worldMessageRow.GetComponentInChildren<Image>();
+            if (newImg != null)
+                newImg.color = new Color(0.7f, 1f, 0.7f, 1f); // 浅绿色
+        }
+
+        // --- 3. Handle TTS for non-notification Tutor messages ---
+        if (sender == ChatManager.Sender.Tutor && !isNotification)
+        {
+            PlayTTS(message, false);
+        }
+    }
+
+    /// <summary>
+    /// Helper method to configure a chat message UI object.
+    /// </summary>
+    private void SetupChatMessage(GameObject messageInstance, string message, ChatManager.Sender sender)
+    {
+        ChatMessageUI messageUI = messageInstance.GetComponent<ChatMessageUI>();
         if (messageUI != null)
         {
             messageUI.SetMessage(message, sender == ChatManager.Sender.User);
         }
-        Image bubbleImage = messageRow.GetComponentInChildren<Image>();
+        else
+        {
+            var tmp = messageInstance.GetComponentInChildren<TMPro.TMP_Text>();
+            if (tmp != null) tmp.text = message;
+        }
+
+        Image bubbleImage = messageInstance.GetComponentInChildren<Image>();
         if (bubbleImage != null)
         {
-            bubbleImage.color = (sender == ChatManager.Sender.User) ? userBubbleColor : tutorBubbleColor;
+            bool isWorldSpace = messageInstance.transform.parent == worldSpaceChatContainer;
+            if (!isWorldSpace)
+                bubbleImage.color = (sender == ChatManager.Sender.User) ? userBubbleColor : tutorBubbleColor;
+            // 世界空间气泡颜色由UpdateChatHistory控制
         }
-        // 只有AI普通对话才自动TTS
-        if (sender == ChatManager.Sender.Tutor && !isNotification)
+
+        if (messageInstance.transform.parent == worldSpaceChatContainer)
         {
-            AddTTSClickHandler(messageRow, message);
-            PlayTTS(message, false);
+            if (messageInstance.GetComponent<FadeAndDestroy>() == null)
+                messageInstance.AddComponent<FadeAndDestroy>();
+        }
+
+        if(sender == ChatManager.Sender.Tutor)
+        {
+            AddTTSClickHandler(messageInstance, message);
         }
     }
-    
+
     private void AddTTSClickHandler(GameObject messageObject, string text)
     {
         Button clickableArea = messageObject.GetComponent<Button>();
@@ -564,9 +660,7 @@ public class ChatTestUI : MonoBehaviour
             float currentProgress = expProgressBar.value;
             float newProgress = Mathf.Lerp(currentProgress, targetExpProgress, 
                 expBarAnimationSpeed * Time.deltaTime);
-            
             expProgressBar.value = newProgress;
-            
             // 检查动画是否完成
             if (Mathf.Abs(newProgress - targetExpProgress) < 0.01f)
             {
@@ -742,15 +836,10 @@ public class ChatTestUI : MonoBehaviour
 
     private IEnumerator CaptureARCameraImageAndSend()
     {
-        if (arCameraManager == null)
-        {
-            Debug.LogError("ARCameraManager is not assigned!");
-            UpdateChatHistory("AR camera is not configured", ChatManager.Sender.Tutor);
-            yield break;
-        }
-
+        // 直接尝试获取AR摄像头画面，使用ARCameraManager实例方法
         XRCpuImage cpuImage;
-        if (arCameraManager.TryAcquireLatestCpuImage(out cpuImage))
+        var arCameraManager = FindObjectOfType<ARCameraManager>();
+        if (arCameraManager != null && arCameraManager.TryAcquireLatestCpuImage(out cpuImage))
         {
             var conversionParams = new XRCpuImage.ConversionParams
             {
@@ -781,5 +870,14 @@ public class ChatTestUI : MonoBehaviour
             UpdateChatHistory("Failed to acquire AR camera image", ChatManager.Sender.Tutor, true);
         }
         yield break;
+    }
+
+    /// <summary>
+    /// Called by ARManager after the tutor is placed to set the anchor for chat bubbles.
+    /// </summary>
+    public void SetWorldSpaceChatContainer(Transform container)
+    {
+        worldSpaceChatContainer = container;
+        Debug.Log("[ChatTestUI] SetWorldSpaceChatContainer called, container: " + (container != null ? container.name : "null"));
     }
 }
