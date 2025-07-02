@@ -11,46 +11,61 @@ public class UserProfile
     public int totalExp = 0;
     
     [Header("Learning Stats")]
-    public int totalSessions = 0;           // 总学习次数
-    public int conversationTurns = 0;       // 对话轮数
-    public int wordsLearned = 0;           // 学到的单词数
-    public int consecutiveDays = 0;         // 连续学习天数
-    public string lastLearningDate = "";    // 最后学习日期
+    public int totalSessions = 0;           // Total learning sessions
+    public int conversationTurns = 0;       // Number of conversation turns
+    public int wordsLearned = 0;            // Number of words learned
+    public int consecutiveDays = 0;         // Consecutive learning days
+    public string lastLearningDate = "";     // Last learning date
     
     [Header("Achievements")]
-    public bool hasUpgradedToday = false;   // 今天是否升级了
-    public bool isDailyBonusReceived = false; // 今日奖励是否已领取
+    public bool hasUpgradedToday = false;    // Has leveled up today
+    public bool isDailyBonusReceived = false; // Daily bonus received today
     
-    // 获取当前等级需要的总经验值
-    public int GetExpRequiredForLevel(int targetLevel)
+    // Gets the total EXP required to reach a specific level.
+    public int GetTotalExpForLevel(int targetLevel)
     {
-        return targetLevel * 50;
+        if (targetLevel <= 1) return 0;
+        int requiredExp = 0;
+        // Sum of EXP for all previous levels (L1 needs 50, L2 needs 100, etc.)
+        for (int i = 1; i < targetLevel; i++)
+        {
+            requiredExp += i * 50;
+        }
+        return requiredExp;
+    }
+
+    // Gets the EXP needed to complete the current level.
+    public int GetExpForCurrentLevel()
+    {
+        return level * 50;
+    }
+
+    // Gets the current EXP accumulated within the current level.
+    public int GetCurrentExpInLevel()
+    {
+        int expForCurrentLevel = GetTotalExpForLevel(level);
+        return totalExp - expForCurrentLevel;
     }
     
-    // 获取升级到下一级还需要的经验值
-    public int GetExpToNextLevel()
-    {
-        int nextLevelTotalExp = GetExpRequiredForLevel(level + 1);
-        return nextLevelTotalExp - totalExp;
-    }
-    
-    // 获取当前等级的进度百分比
+    // Gets the progress towards the next level as a percentage (0.0 to 1.0).
     public float GetLevelProgress()
     {
-        if (level == 1)
-        {
-            return (float)totalExp / GetExpRequiredForLevel(2);
-        }
+        int expNeeded = GetExpForCurrentLevel();
+        if (expNeeded == 0) return 0;
         
-        int currentLevelExp = GetExpRequiredForLevel(level);
-        int nextLevelExp = GetExpRequiredForLevel(level + 1);
-        int expInCurrentLevel = totalExp - currentLevelExp;
-        int expNeededForLevel = nextLevelExp - currentLevelExp;
-        
-        return Mathf.Clamp01((float)expInCurrentLevel / expNeededForLevel);
+        int currentExpInLevel = GetCurrentExpInLevel();
+        return Mathf.Clamp01((float)currentExpInLevel / expNeeded);
+    }
+
+    // Gets the EXP required to level up to the next level.
+    public int GetExpToNextLevel()
+    {
+        int expForNext = GetExpForCurrentLevel();
+        int currentExpInLevel = GetCurrentExpInLevel();
+        return expForNext - currentExpInLevel;
     }
     
-    // 获取等级称号
+    // Gets the level title
     public string GetLevelTitle()
     {
         return level switch
@@ -64,7 +79,7 @@ public class UserProfile
         };
     }
     
-    // 获取等级颜色
+    // Gets the level color
     public Color GetLevelColor()
     {
         return level switch

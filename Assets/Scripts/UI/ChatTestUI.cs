@@ -674,44 +674,29 @@ public class ChatTestUI : MonoBehaviour
     {
         if (profile == null) return;
         
-        // 更新等级显示
+        // Update level display
         if (levelText != null)
         {
             levelText.text = $"Level {profile.level}";
             levelText.color = profile.GetLevelColor();
         }
         
-        // 更新称号显示
+        // Update title display
         if (titleText != null)
         {
             titleText.text = profile.GetLevelTitle();
             titleText.color = profile.GetLevelColor();
         }
         
-        // 更新经验值显示
+        // Update EXP display using the corrected logic
         if (expText != null)
         {
-            int expToNextLevel = profile.GetExpToNextLevel();
-            int currentLevelExp = profile.totalExp;
-            int nextLevelTotalExp = currentLevelExp + expToNextLevel;
-            
-            // 显示当前级别的经验进度
-            if (profile.level == 1)
-            {
-                expText.text = $"{profile.totalExp}/{profile.GetExpRequiredForLevel(2)} EXP";
-            }
-            else
-            {
-                int currentLevelStartExp = profile.GetExpRequiredForLevel(profile.level);
-                int nextLevelStartExp = profile.GetExpRequiredForLevel(profile.level + 1);
-                int expInCurrentLevel = profile.totalExp - currentLevelStartExp;
-                int expNeededForLevel = nextLevelStartExp - currentLevelStartExp;
-                expInCurrentLevel = Mathf.Max(0, expInCurrentLevel); // 防止负数
-                expText.text = $"{expInCurrentLevel}/{expNeededForLevel} EXP";
-            }
+            int currentExpInLevel = profile.GetCurrentExpInLevel();
+            int expForLevel = profile.GetExpForCurrentLevel();
+            expText.text = $"{currentExpInLevel}/{expForLevel} EXP";
         }
         
-        // 更新经验值进度条
+        // Update EXP progress bar
         if (expProgressBar != null)
         {
             float progress = profile.GetLevelProgress();

@@ -38,7 +38,7 @@ public class LearningProgressManager : MonoBehaviour
     
     private void Start()
     {
-        // 检查每日奖励
+        // Check for daily bonus
         CheckDailyBonus();
         
         Debug.Log($"? Welcome back, {userProfile.playerName}!");
@@ -46,19 +46,19 @@ public class LearningProgressManager : MonoBehaviour
         Debug.Log($"? EXP: {userProfile.totalExp} | Next Level: {userProfile.GetExpToNextLevel()} EXP needed");
     }
     
-    // 完成一次学习会话
+    // Completes a learning session
     public void CompleteSession(bool isSceneLearning = true, int conversationTurns = 1)
     {
         int expGained = baseSessionReward;
         
-        // 连续对话奖励
+        // Bonus for continuous conversation
         if (conversationTurns >= 3)
         {
             expGained += continuousRewardBonus;
             Debug.Log($"? Conversation bonus: +{continuousRewardBonus} EXP!");
         }
         
-        // 每日首次学习奖励
+        // Daily first study bonus
         if (!userProfile.isDailyBonusReceived)
         {
             expGained += dailyBonus;
@@ -66,20 +66,20 @@ public class LearningProgressManager : MonoBehaviour
             Debug.Log($"? Daily first study bonus: +{dailyBonus} EXP!");
         }
         
-        // 更新统计
+        // Update stats
         userProfile.totalSessions++;
         userProfile.conversationTurns += conversationTurns;
         
-        // 添加经验值
+        // Add experience
         AddExperience(expGained);
         
-        // 更新最后学习日期
+        // Update last learning date
         userProfile.lastLearningDate = DateTime.Now.ToString("yyyy-MM-dd");
         
         SaveUserProfile();
     }
     
-    // 学习新单词奖励
+    // Reward for learning a new word
     public void LearnNewWord()
     {
         userProfile.wordsLearned++;
@@ -89,20 +89,20 @@ public class LearningProgressManager : MonoBehaviour
         SaveUserProfile();
     }
     
-    // 添加经验值
+    // Adds experience points
     public void AddExperience(int amount)
     {
         int oldLevel = userProfile.level;
         userProfile.totalExp += amount;
         Debug.Log($"? +{amount} EXP! Total: {userProfile.totalExp}");
-        // 检查是否升级
+        // Check for level up
         CheckLevelUp(oldLevel);
         OnExpGained?.Invoke(amount);
         OnProfileUpdated?.Invoke(userProfile);
-        SaveUserProfile(); // 确保每次加经验都保存
+        SaveUserProfile(); // Ensure profile is saved after gaining EXP
     }
     
-    // 检查升级
+    // Checks for level up
     private void CheckLevelUp(int oldLevel)
     {
         int newLevel = CalculateLevel(userProfile.totalExp);
@@ -112,11 +112,11 @@ public class LearningProgressManager : MonoBehaviour
             userProfile.hasUpgradedToday = true;
             Debug.Log($"? LEVEL UP! You are now Level {newLevel} ({userProfile.GetLevelTitle()})!");
             OnLevelUp?.Invoke(newLevel);
-            SaveUserProfile(); // 升级时也保存
+            SaveUserProfile(); // Also save on level up
         }
     }
     
-    // 根据总经验值计算等级
+    // Calculates level based on total experience
     private int CalculateLevel(int totalExp)
     {
         int level = 1;
@@ -124,7 +124,7 @@ public class LearningProgressManager : MonoBehaviour
         
         while (true)
         {
-            int expForThisLevel = level * 50; // 每级需要的经验：level1=50, level2=100, level3=150...
+            int expForThisLevel = level * 50; // EXP needed for each level: L1=50, L2=100, L3=150...
             
             if (totalExp >= expRequired + expForThisLevel)
             {
@@ -140,7 +140,7 @@ public class LearningProgressManager : MonoBehaviour
         return level;
     }
     
-    // 检查每日奖励
+    // Checks for daily bonus
     private void CheckDailyBonus()
     {
         string today = DateTime.Now.ToString("yyyy-MM-dd");
@@ -150,7 +150,7 @@ public class LearningProgressManager : MonoBehaviour
             userProfile.isDailyBonusReceived = false;
             userProfile.hasUpgradedToday = false;
             
-            // 计算连续学习天数
+            // Calculate consecutive learning days
             if (!string.IsNullOrEmpty(userProfile.lastLearningDate))
             {
                 DateTime lastDate = DateTime.Parse(userProfile.lastLearningDate);
@@ -162,27 +162,27 @@ public class LearningProgressManager : MonoBehaviour
                 }
                 else if ((currentDate - lastDate).Days > 1)
                 {
-                    userProfile.consecutiveDays = 0; // 断签重置
+                    userProfile.consecutiveDays = 0; // Reset if streak is broken
                 }
             }
         }
     }
     
-    // 获取学习难度级别（用于AI提示词调整）
+    // Gets the learning difficulty level (for adjusting AI prompts)
     public string GetLearningDifficultyLevel()
     {
         return userProfile.level switch
         {
-            >= 1 and <= 5 => "beginner",      // 基础词汇，简单句型
-            >= 6 and <= 10 => "elementary",   // 常用短语，日常表达
-            >= 11 and <= 15 => "intermediate", // 地道表达，习惯用法
-            >= 16 and <= 20 => "upper-intermediate", // 正式场合，商务用语
-            >= 21 => "advanced",               // 文化内容，深度交流
+            >= 1 and <= 5 => "beginner",      // Basic vocabulary, simple sentences
+            >= 6 and <= 10 => "elementary",   // Common phrases, daily expressions
+            >= 11 and <= 15 => "intermediate", // Idiomatic expressions, common usage
+            >= 16 and <= 20 => "upper-intermediate", // Formal situations, business terms
+            >= 21 => "advanced",               // Cultural topics, in-depth conversation
             _ => "beginner"
         };
     }
     
-    // 保存用户资料
+    // Saves the user profile
     public void SaveUserProfile()
     {
         string json = JsonUtility.ToJson(userProfile);
@@ -192,7 +192,7 @@ public class LearningProgressManager : MonoBehaviour
         Debug.Log("? User profile saved!");
     }
     
-    // 加载用户资料
+    // Loads the user profile
     public void LoadUserProfile()
     {
         if (PlayerPrefs.HasKey(SAVE_KEY))
@@ -208,7 +208,7 @@ public class LearningProgressManager : MonoBehaviour
         }
     }
     
-    // 重置进度（调试用）
+    // Resets progress (for debugging)
     public void ResetProgress()
     {
         userProfile = new UserProfile();
