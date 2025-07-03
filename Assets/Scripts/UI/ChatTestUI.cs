@@ -18,12 +18,11 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text; // 添加StringBuilder命名空间
-using System.Linq; // 添加LINQ命名空间
+using System.Text; // StringBuilder命名空间
+using System.Linq; // LINQ命名空间
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using Unity.Collections;
-using System.Collections.Generic;
 using UnityEngine.EventSystems;
 
 /// <summary>
@@ -197,6 +196,13 @@ public class ChatTestUI : MonoBehaviour
         else
         {
             Debug.LogWarning("?? Chat panel not assigned in Inspector.");
+        }
+        
+        // 初始化AgentButton显示状态（与ChatPanel互斥）
+        if (agentButton != null)
+        {
+            agentButton.gameObject.SetActive(!isChatPanelVisible); // ChatPanel隐藏时显示AgentButton
+            Debug.Log($"? AgentButton initialized - Visible: {!isChatPanelVisible}");
         }
 
         // Check required prefabs
@@ -672,6 +678,13 @@ public class ChatTestUI : MonoBehaviour
         isChatPanelVisible = !isChatPanelVisible;
         chatPanel.SetActive(isChatPanelVisible);
         
+        // 当聊天面板显示时，隐藏AgentButton，反之亦然
+        if (agentButton != null)
+        {
+            agentButton.gameObject.SetActive(!isChatPanelVisible);
+            Debug.Log($"AgentButton visibility toggled: {!isChatPanelVisible}");
+        }
+        
         // Optionally, you can change the button text or icon here
         // For example, if you have a Text component as a child of the button:
         /*
@@ -692,7 +705,14 @@ public class ChatTestUI : MonoBehaviour
         {
             isChatPanelVisible = true;
             chatPanel.SetActive(true);
-            Debug.Log("Chat panel shown");
+            
+            // 同时隐藏AgentButton
+            if (agentButton != null)
+            {
+                agentButton.gameObject.SetActive(false);
+            }
+            
+            Debug.Log("Chat panel shown, AgentButton hidden");
         }
     }
 
@@ -702,7 +722,14 @@ public class ChatTestUI : MonoBehaviour
         {
             isChatPanelVisible = false;
             chatPanel.SetActive(false);
-            Debug.Log("Chat panel hidden");
+            
+            // 同时显示AgentButton
+            if (agentButton != null)
+            {
+                agentButton.gameObject.SetActive(true);
+            }
+            
+            Debug.Log("Chat panel hidden, AgentButton shown");
         }
     }
 
@@ -1103,6 +1130,14 @@ public class ChatTestUI : MonoBehaviour
             return;
         }
 
+        // 在点击Agent按钮时，隐藏聊天面板
+        if (chatPanel != null)
+        {
+            chatPanel.SetActive(false);
+            isChatPanelVisible = false;
+            Debug.Log("Agent clicked: Chat panel hidden");
+        }
+
         if (!isRecording)
         {
             StartAgentRecording();
@@ -1115,21 +1150,14 @@ public class ChatTestUI : MonoBehaviour
     
     private void StartAgentRecording()
     {
-        Debug.Log("Starting AI agent voice recording...");
+        Debug.Log("Starting agent voice recording...");
         isRecording = true;
         
         // Change button color to indicate recording
-        Image agentButtonImage = agentButton?.GetComponent<Image>();
+        Image agentButtonImage = agentButton.GetComponent<Image>();
         if (agentButtonImage != null)
         {
             agentButtonImage.color = recordingColor;
-        }
-        
-        // Capture current scene if enabled (gives AI context of what user is looking at)
-        if (captureSceneOnAgentRecord && BackgroundSceneMonitor.Instance != null)
-        {
-            BackgroundSceneMonitor.Instance.CaptureScene();
-            Debug.Log("Scene captured for AI context");
         }
         
         // Start recording via AudioManager
@@ -1137,15 +1165,12 @@ public class ChatTestUI : MonoBehaviour
         
         // Disable other UI during recording
         SetUIInteractable(false);
-        if (agentButton != null)
-        {
-            agentButton.interactable = true; // Keep agent button active to stop recording
-        }
+        agentButton.interactable = true; // Keep agent button active to stop recording
     }
     
     private void StopAgentRecording()
     {
-        Debug.Log("Stopping AI agent voice recording...");
+        Debug.Log("Stopping agent voice recording...");
         
         // Stop recording via AudioManager
         AudioManager.Instance.StopRecording();
@@ -1158,7 +1183,7 @@ public class ChatTestUI : MonoBehaviour
         isRecording = false;
         
         // Reset button color
-        Image agentButtonImage = agentButton?.GetComponent<Image>();
+        Image agentButtonImage = agentButton.GetComponent<Image>();
         if (agentButtonImage != null)
         {
             agentButtonImage.color = normalRecordButtonColor;
