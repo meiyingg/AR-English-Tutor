@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine.Events;
@@ -34,9 +35,39 @@ public class ChatManager : MonoBehaviour
 
     void Start()
     {
-        // Optional: Add a system message to set the context for the AI
+        // Add a system message to set the context for the AI
         var systemMessage = new ChatMessage { role = "system", content = "You are a helpful English tutor." };
         messages.Add(systemMessage);
+        
+        // Note: Self-introduction will be triggered when AR Tutor is summoned
+    }
+    
+    /// <summary>
+    /// Call this method when AR Tutor is summoned to send self-introduction
+    /// </summary>
+    public void TriggerSelfIntroduction()
+    {
+        StartCoroutine(SendSelfIntroduction());
+    }
+    
+    private System.Collections.IEnumerator SendSelfIntroduction()
+    {
+        // Wait a moment to ensure AR Tutor is fully loaded
+        yield return new WaitForSeconds(0.5f);
+        
+        // Create a friendly self-introduction message using TextMeshPro Rich Text
+        string introMessage = @"<color=#4CAF50>Hello! I'm your AI English tutor!</color>
+<color=#2196F3><b>I'm here to help you improve your English in three exciting ways:</b></color>
+<color=#FF9800> - <b>Normal Mode</b></color>: Chat with me naturally and get grammar tips
+<color=#9C27B0> - <b>Scene Mode</b></color>: Show me pictures and learn through real-world scenes
+<color=#F44336> - <b>Word Mode</b></color>: Master vocabulary with interactive practice
+<color=#4CAF50><b>Let's start chatting!</b></color> Try saying '<i>Hello</i>' or ask me anything in English!";
+        
+        // Display the introduction message
+        if (onNewMessage != null)
+        {
+            onNewMessage.Invoke(introMessage, Sender.Tutor, false);
+        }
     }
 
     public new async Task SendMessage(string text)
@@ -146,7 +177,7 @@ public class ChatManager : MonoBehaviour
         }
     }
 
-    public async Task SendSceneRecognitionRequest(string imageBase64, Texture2D imageTexture, string additionalText = "")
+    public async Task SendSceneRecognitionRequest(string imageBase64, Texture2D imageTexture, string additionalText = "", bool isFirstSceneInteraction = true)
     {
         // Reset session turn counter for new scene
         currentSessionTurns = 0;
@@ -176,7 +207,7 @@ public class ChatManager : MonoBehaviour
         }
         
         // Create mode-specific prompt
-        string scenePrompt = CreateModeSpecificPrompt(currentMode, difficultyLevel);
+        string scenePrompt = CreateModeSpecificPrompt(currentMode, difficultyLevel, isFirstSceneInteraction);
 
         if (!string.IsNullOrEmpty(additionalText))
         {
@@ -197,6 +228,12 @@ public class ChatManager : MonoBehaviour
             
             // Display the interactive lesson start
             onNewMessage.Invoke(response, Sender.Tutor, false);
+            
+            // In Normal mode, provide grammar correction after AI response
+            if (currentMode == LearningModeManager.LearningMode.Normal && !string.IsNullOrEmpty(additionalText))
+            {
+                await ProvideGrammarCorrection(additionalText);
+            }
             
             // Award experience for starting a scene learning session
             if (LearningProgressManager.Instance != null)
@@ -260,21 +297,23 @@ public class ChatManager : MonoBehaviour
         };
     }
     
-    private string CreateModeSpecificPrompt(LearningModeManager.LearningMode mode, string difficultyLevel)
+    private string CreateModeSpecificPrompt(LearningModeManager.LearningMode mode, string difficultyLevel, bool isFirstSceneInteraction = true)
     {
         string basePrompt = mode switch
         {
-            LearningModeManager.LearningMode.Scene => CreateSceneModePrompt(difficultyLevel),
-            LearningModeManager.LearningMode.Word => CreateWordModePrompt(difficultyLevel),
-            _ => CreateSceneModePrompt(difficultyLevel)
+            LearningModeManager.LearningMode.Scene => CreateSceneModePrompt(difficultyLevel, isFirstSceneInteraction),
+            LearningModeManager.LearningMode.Word => CreateWordModePrompt(difficultyLevel, isFirstSceneInteraction),
+            _ => CreateSceneModePrompt(difficultyLevel, isFirstSceneInteraction)
         };
         
         return basePrompt;
     }
     
-    private string CreateSceneModePrompt(string difficultyLevel)
+    private string CreateSceneModePrompt(string difficultyLevel, bool isFirstSceneInteraction = true)
     {
-        return $@"You are an English tutor. Look at this image and start an interactive English lesson based on what you see.
+        if (isFirstSceneInteraction)
+        {
+            return $@"You are an English tutor. Look at this image and start an interactive English lesson based on what you see.
 
 Learning Level: {difficultyLevel}
 
@@ -297,11 +336,39 @@ Example responses for {difficultyLevel}:
 {GetLevelSpecificExamples(difficultyLevel)}
 
 Start the lesson now - be natural and encouraging!";
+        }
+        else
+        {
+            return $@"You are an English tutor continuing a conversation about the scene in this image.
+
+Learning Level: {difficultyLevel}
+Context: You have already introduced this scene to the student. Now continue the conversation naturally.
+
+Instructions:
+1. Don't re-describe the scene or re-introduce yourself
+2. Continue the ongoing conversation about this scene
+3. Respond to the student's message in the context of the scene learning
+4. ONLY respond in English (no Chinese translations)
+5. Adapt your language complexity to the {difficultyLevel} level
+6. Keep the conversation flowing naturally and educationally
+7. Ask follow-up questions or provide scene-related learning content
+
+Language Guidelines for {difficultyLevel} level:
+- beginner: Use simple words, present tense, basic vocabulary
+- elementary: Use common phrases, simple past/future, everyday vocabulary  
+- intermediate: Use natural expressions, various tenses, common idioms
+- upper-intermediate: Use business/formal language, complex sentences
+- advanced: Use sophisticated vocabulary, cultural references, nuanced expressions
+
+Continue the scene-based conversation naturally!";
+        }
     }
     
-    private string CreateWordModePrompt(string difficultyLevel)
+    private string CreateWordModePrompt(string difficultyLevel, bool isFirstWordInteraction = true)
     {
-        return $@"You are an English tutor. Look at this image and focus on vocabulary learning.
+        if (isFirstWordInteraction)
+        {
+            return $@"You are an English tutor. Look at this image and focus on vocabulary learning.
 
 Learning Level: {difficultyLevel}
 
@@ -328,6 +395,32 @@ Mini dialogue: A: [sentence] B: [response]
 Now try making your own sentence with [object]!'
 
 Start the vocabulary lesson now!";
+        }
+        else
+        {
+            return $@"You are an English tutor continuing a vocabulary lesson about the words from this image.
+
+Learning Level: {difficultyLevel}
+Context: You have already introduced vocabulary words from this scene to the student. Now continue the vocabulary learning conversation.
+
+Instructions:
+1. Don't re-identify objects or re-introduce vocabulary words you've already taught
+2. Continue the vocabulary learning conversation based on the student's response
+3. Help the student practice using the words you've already introduced
+4. ONLY respond in English (no Chinese translations)
+5. Adapt your language complexity to the {difficultyLevel} level
+6. Focus on vocabulary practice, usage, and reinforcement
+7. Ask follow-up questions about word usage
+
+Language Guidelines for {difficultyLevel} level:
+- beginner: Focus on basic nouns, simple definitions
+- elementary: Add adjectives, basic verbs, simple sentences
+- intermediate: Include phrasal verbs, expressions, context usage
+- upper-intermediate: Advanced vocabulary, idioms, formal usage
+- advanced: Sophisticated vocabulary, nuanced meanings, cultural context
+
+Continue the vocabulary learning conversation naturally!";
+        }
     }
     
     private string GetLevelSpecificExamples(string difficultyLevel)
@@ -404,14 +497,12 @@ Instructions:
 4. Give one additional example using the corrected grammar
 5. Keep your feedback encouraging and educational
 6. If the grammar is already correct, acknowledge this and provide a tip for improvement
-7. the whole response should not exceed 4 sentences
+7. the whole response should not exceed 3 sentences
 
 Format your response like this:
 Grammar Check:
 [Your analysis here]
-
 Corrected: [Corrected sentence if needed, or 'Your grammar is correct!']
-
-Example: [Additional example sentence];
+Example: [Additional example sentence]";
     }
 }

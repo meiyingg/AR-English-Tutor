@@ -387,7 +387,8 @@ public class BackgroundSceneMonitor : MonoBehaviour
             yield return chatManager.SendSceneRecognitionRequest(
                 latestScene.base64Image, 
                 latestScene.texture, 
-                userQuery);
+                userQuery,
+                true); // Background scene monitor triggers are always first interactions
         }
     }
     

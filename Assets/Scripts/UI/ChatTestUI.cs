@@ -88,6 +88,14 @@ public class ChatTestUI : MonoBehaviour
 
     private Transform worldSpaceChatContainer; // New world-space container
 
+    [Header("Scene Interaction Tracking")]
+    private float lastSceneInteractionTime = 0f; // 最近一次场景交互的时间
+    private const float SCENE_INTERACTION_COOLDOWN = 60f; // 60秒内不重复场景分析（延长时间）
+    private int conversationTurnsInCurrentScene = 0; // 当前场景对话轮数
+    private const int MAX_CONVERSATION_TURNS_BEFORE_RESET = 8; // 超过8轮对话后重置场景
+    private int vocabularyPracticeRounds = 0; // 当前词汇练习轮数
+    private const int MAX_VOCABULARY_ROUNDS_BEFORE_NEW_WORDS = 6; // 超过6轮后倾向于学习新词汇
+    
     private void Awake()
     {
         if (Instance == null)
@@ -422,16 +430,124 @@ public class ChatTestUI : MonoBehaviour
             inputField.text = transcription;
         }
         
-        // Get the latest scene context (if available and AgentButton was used)
+        // Get current learning mode to determine behavior
+        LearningModeManager.LearningMode currentMode = LearningModeManager.LearningMode.Normal;
+        if (LearningModeManager.Instance != null)
+        {
+            currentMode = LearningModeManager.Instance.currentMode;
+        }
+        
+        // AgentButton should primarily send text, not force scene analysis
+        // Only use scene context in specific conditions based on mode and user intent
         bool useSceneContext = false;
         BackgroundSceneMonitor.SceneMemory latestScene = null;
         
-        if (agentButton?.gameObject.activeInHierarchy == true && 
-            captureSceneOnAgentRecord && 
-            BackgroundSceneMonitor.Instance != null)
+        // Only consider scene context if BackgroundSceneMonitor is available
+        if (BackgroundSceneMonitor.Instance != null)
         {
             latestScene = BackgroundSceneMonitor.Instance.GetLatestScene();
-            useSceneContext = (latestScene != null && !string.IsNullOrEmpty(latestScene.base64Image));
+            
+            // Check if we have valid scene data
+            bool hasValidScene = (latestScene != null && !string.IsNullOrEmpty(latestScene.base64Image));
+            
+            if (hasValidScene)
+            {
+                string lowerTranscription = transcription.ToLower();
+                
+                // Determine scene context usage based on mode and user intent
+                if (currentMode == LearningModeManager.LearningMode.Normal)
+                {
+                    // Normal mode: Only use scene context if user explicitly asks about the scene
+                    bool explicitlyAsksAboutScene = lowerTranscription.Contains("what") && (lowerTranscription.Contains("see") || lowerTranscription.Contains("this")) ||
+                                                   lowerTranscription.Contains("describe") ||
+                                                   lowerTranscription.Contains("look at") ||
+                                                   lowerTranscription.Contains("analyze") ||
+                                                   lowerTranscription.Contains("tell me about this") ||
+                                                   lowerTranscription.Contains("what's in the") ||
+                                                   lowerTranscription.Contains("picture") ||
+                                                   lowerTranscription.Contains("image");
+                    
+                    useSceneContext = explicitlyAsksAboutScene;
+                }
+                else if (currentMode == LearningModeManager.LearningMode.Scene)
+                {
+                    // Scene mode: Use intelligent context detection
+                    // (keeping the existing smart logic for Scene mode)
+                    bool explicitlyAskingAboutScene = 
+                        (lowerTranscription.Contains("what") && (lowerTranscription.Contains("see") || lowerTranscription.Contains("this"))) ||
+                        lowerTranscription.Contains("describe") ||
+                        lowerTranscription.Contains("look at") ||
+                        lowerTranscription.Contains("analyze") ||
+                        lowerTranscription.Contains("tell me about this") ||
+                        lowerTranscription.Contains("what's in the") ||
+                        lowerTranscription.Contains("what is in") ||
+                        lowerTranscription.Contains("show me") ||
+                        lowerTranscription.Contains("new scene") ||
+                        lowerTranscription.Contains("different scene") ||
+                        lowerTranscription.Contains("change scene") ||
+                        lowerTranscription.Contains("another scene") ||
+                        lowerTranscription.Contains("restart") ||
+                        lowerTranscription.Contains("start over") ||
+                        lowerTranscription.Contains("let's talk about") ||
+                        lowerTranscription.Contains("what about") ||
+                        lowerTranscription.Contains("how about");
+                    
+                    bool indicatesContinuation = 
+                        lowerTranscription.Equals("yes") || lowerTranscription.Equals("no") ||
+                        lowerTranscription.Equals("ok") || lowerTranscription.Equals("okay") ||
+                        lowerTranscription.Equals("sure") || lowerTranscription.Equals("good") ||
+                        lowerTranscription.StartsWith("i ") || lowerTranscription.StartsWith("my ") ||
+                        lowerTranscription.StartsWith("i'm ") || lowerTranscription.StartsWith("i am ") ||
+                        lowerTranscription.Contains("i like") || lowerTranscription.Contains("i don't like") ||
+                        lowerTranscription.Contains("i think") || lowerTranscription.Contains("i believe") ||
+                        lowerTranscription.Contains("because") || lowerTranscription.Contains("so") ||
+                        lowerTranscription.Contains("what do you") || lowerTranscription.Contains("do you") ||
+                        lowerTranscription.Contains("can you") || lowerTranscription.Contains("will you");
+                    
+                    bool isFirstSceneInteraction = !HasRecentSceneInteraction();
+                    bool tooManyConversationTurns = conversationTurnsInCurrentScene >= MAX_CONVERSATION_TURNS_BEFORE_RESET;
+                    
+                    useSceneContext = isFirstSceneInteraction ||
+                                     explicitlyAskingAboutScene ||
+                                     (tooManyConversationTurns && !indicatesContinuation);
+                }
+                else if (currentMode == LearningModeManager.LearningMode.Word)
+                {
+                    // Word mode: Use intelligent vocabulary detection
+                    bool explicitlyAskingAboutWords = 
+                        lowerTranscription.Contains("what") && (lowerTranscription.Contains("word") || lowerTranscription.Contains("vocabulary")) ||
+                        lowerTranscription.Contains("teach me") && (lowerTranscription.Contains("word") || lowerTranscription.Contains("vocabulary")) ||
+                        lowerTranscription.Contains("what is this") ||
+                        lowerTranscription.Contains("what are these") ||
+                        lowerTranscription.Contains("what's this called") ||
+                        lowerTranscription.Contains("how do you say") ||
+                        lowerTranscription.Contains("new words") ||
+                        lowerTranscription.Contains("more words") ||
+                        lowerTranscription.Contains("other words") ||
+                        lowerTranscription.Contains("different words") ||
+                        lowerTranscription.Contains("another word") ||
+                        lowerTranscription.Contains("more vocabulary") ||
+                        lowerTranscription.Contains("learn vocabulary");
+                    
+                    bool indicatesVocabularyPractice = 
+                        lowerTranscription.Contains("i use") || lowerTranscription.Contains("i have") ||
+                        lowerTranscription.Contains("my sentence is") || lowerTranscription.Contains("here is my sentence") ||
+                        lowerTranscription.Contains("the word") || lowerTranscription.Contains("this word") ||
+                        lowerTranscription.Contains("that word") || lowerTranscription.Contains("these words") ||
+                        lowerTranscription.Contains("how do i use") || lowerTranscription.Contains("can i say") ||
+                        lowerTranscription.Contains("is this correct") || lowerTranscription.Contains("did i use") ||
+                        lowerTranscription.Equals("yes") || lowerTranscription.Equals("no") ||
+                        lowerTranscription.StartsWith("i ") || lowerTranscription.StartsWith("my ") ||
+                        lowerTranscription.Contains("because") || lowerTranscription.Contains("so");
+                    
+                    bool isFirstWordInteraction = !HasRecentSceneInteraction();
+                    bool tooManyPracticeRounds = vocabularyPracticeRounds >= MAX_VOCABULARY_ROUNDS_BEFORE_NEW_WORDS;
+                    
+                    useSceneContext = isFirstWordInteraction ||
+                                     explicitlyAskingAboutWords ||
+                                     (tooManyPracticeRounds && !indicatesVocabularyPractice);
+                }
+            }
         }
         
         // Disable UI during processing
@@ -440,15 +556,43 @@ public class ChatTestUI : MonoBehaviour
         // Use scene-aware message or regular message
         if (useSceneContext && ChatManager.Instance != null)
         {
+            // Determine if this is first scene interaction
+            bool isFirstSceneInteraction = !HasRecentSceneInteraction();
+            
+            // Record that we're doing a scene interaction
+            RecordSceneInteraction();
+            
+            // Reset conversation/practice counters for new vocabulary/scene analysis
+            if (currentMode == LearningModeManager.LearningMode.Scene)
+            {
+                conversationTurnsInCurrentScene = 0;
+            }
+            else if (currentMode == LearningModeManager.LearningMode.Word)
+            {
+                vocabularyPracticeRounds = 0;
+            }
+            
             // Send with scene context
             await ChatManager.Instance.SendSceneRecognitionRequest(
                 latestScene.base64Image,
                 latestScene.texture, 
-                transcription);
+                transcription,
+                isFirstSceneInteraction);
         }
         else
         {
-            // Regular text message
+            // Regular text message - increment conversation/practice counters
+            if (currentMode == LearningModeManager.LearningMode.Scene)
+            {
+                conversationTurnsInCurrentScene++;
+                Debug.Log($"[ChatTestUI] Scene conversation turn: {conversationTurnsInCurrentScene}");
+            }
+            else if (currentMode == LearningModeManager.LearningMode.Word)
+            {
+                vocabularyPracticeRounds++;
+                Debug.Log($"[ChatTestUI] Vocabulary practice round: {vocabularyPracticeRounds}");
+            }
+            
             if (ChatManager.Instance != null)
             {
                 await ChatManager.Instance.SendMessage(transcription);
@@ -566,7 +710,7 @@ public class ChatTestUI : MonoBehaviour
                 SetUIInteractable(false);
                 
                 // Send to AI for scene recognition with user's text
-                await ChatManager.Instance.SendSceneRecognitionRequest(base64, texture, userText);
+                await ChatManager.Instance.SendSceneRecognitionRequest(base64, texture, userText, true); // Always first interaction for image upload
                 
                 // Re-enable UI
                 SetUIInteractable(true);
@@ -1137,7 +1281,7 @@ public class ChatTestUI : MonoBehaviour
             inputField.text = "";
 
             SetUIInteractable(false);
-            yield return ChatManager.Instance.SendSceneRecognitionRequest(System.Convert.ToBase64String(texture.EncodeToPNG()), texture, userText);
+            yield return ChatManager.Instance.SendSceneRecognitionRequest(System.Convert.ToBase64String(texture.EncodeToPNG()), texture, userText, true); // Always first interaction for camera capture
             SetUIInteractable(true);
         }
         else
@@ -1334,5 +1478,22 @@ public class ChatTestUI : MonoBehaviour
             Debug.LogWarning("LearningModeManager not found! Please add LearningModeManager to the scene.");
             UpdateChatHistory("Normal chat mode unavailable. Please check LearningModeManager setup.", ChatManager.Sender.Tutor);
         }
+    }
+    
+    /// <summary>
+    /// 检查是否在最近时间内有场景交互
+    /// </summary>
+    private bool HasRecentSceneInteraction()
+    {
+        return (Time.time - lastSceneInteractionTime) < SCENE_INTERACTION_COOLDOWN;
+    }
+    
+    /// <summary>
+    /// 记录场景交互时间
+    /// </summary>
+    private void RecordSceneInteraction()
+    {
+        lastSceneInteractionTime = Time.time;
+        Debug.Log($"[ChatTestUI] Scene interaction recorded at time: {lastSceneInteractionTime}");
     }
 }

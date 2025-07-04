@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
@@ -42,6 +43,22 @@ public class LearningModeManager : MonoBehaviour
     private void Start()
     {
         Debug.Log("LearningModeManager initialized - Ready for mode switching");
+        
+        // Start in Normal mode and show initial mode message after a delay
+        StartCoroutine(InitializeNormalMode());
+    }
+    
+    private System.Collections.IEnumerator InitializeNormalMode()
+    {
+        // Wait for other systems to initialize
+        yield return new WaitForSeconds(2f);
+        
+        // Normal mode is activated by default but no message is shown in chat
+        // The default mode activation should not clutter the chat interface
+        Debug.Log("Learning system initialized in Normal Mode - ready for natural conversation and grammar corrections");
+        
+        // 初始化按钮颜色以反映默认的Normal模式
+        UpdateModeButtonColors();
     }
     
     /// <summary>
@@ -53,6 +70,9 @@ public class LearningModeManager : MonoBehaviour
         currentMode = newMode;
         
         Debug.Log($"Learning mode switched from {previousMode} to {currentMode}");
+        
+        // 更新按钮颜色以反映当前模式
+        UpdateModeButtonColors();
         
         // 在聊天窗口显示模式切换提示
         string modeMessage = GetModeMessage(newMode);
@@ -116,9 +136,9 @@ public class LearningModeManager : MonoBehaviour
     {
         return mode switch
         {
-            LearningMode.Scene => "Scene Learning Mode activated! Please let me see the nearby environment to start our lesson.",
-            LearningMode.Word => "Word Learning Mode activated! Please let me see the nearby environment to start our lesson.",
-            LearningMode.Normal => "Normal Chat Mode activated! Feel free to chat about anything you'd like to learn.",
+            LearningMode.Scene => "<color=#9C27B0><b>Scene Learning Mode</b></color> activated! Please let me see the nearby environment to start our lesson.",
+            LearningMode.Word => "<color=#F44336><b>Word Learning Mode</b></color> activated! Please let me see the nearby environment to start our lesson.",
+            LearningMode.Normal => "<color=#4CAF50><b>Normal Chat Mode</b></color> activated! Feel free to chat about anything you'd like to learn.",
             _ => "Mode switched successfully!"
         };
     }
@@ -154,5 +174,71 @@ public class LearningModeManager : MonoBehaviour
         }
         
         return basePrompt;
+    }
+    
+    /// <summary>
+    /// 更新模式按钮颜色以反映当前激活的模式
+    /// </summary>
+    private void UpdateModeButtonColors()
+    {
+        if (ChatTestUI.Instance == null) return;
+        
+        // 默认颜色（白色/未激活）
+        Color defaultColor = Color.white;
+        // 激活颜色（绿色）
+        Color activeColor = Color.green;
+        
+        // 重置所有按钮为默认颜色
+        if (ChatTestUI.Instance.normalModeButton != null)
+        {
+            var normalColors = ChatTestUI.Instance.normalModeButton.colors;
+            normalColors.normalColor = defaultColor;
+            ChatTestUI.Instance.normalModeButton.colors = normalColors;
+        }
+        
+        if (ChatTestUI.Instance.sceneModeButton != null)
+        {
+            var sceneColors = ChatTestUI.Instance.sceneModeButton.colors;
+            sceneColors.normalColor = defaultColor;
+            ChatTestUI.Instance.sceneModeButton.colors = sceneColors;
+        }
+        
+        if (ChatTestUI.Instance.wordModeButton != null)
+        {
+            var wordColors = ChatTestUI.Instance.wordModeButton.colors;
+            wordColors.normalColor = defaultColor;
+            ChatTestUI.Instance.wordModeButton.colors = wordColors;
+        }
+        
+        // 设置当前激活模式的按钮为绿色
+        switch (currentMode)
+        {
+            case LearningMode.Normal:
+                if (ChatTestUI.Instance.normalModeButton != null)
+                {
+                    var normalColors = ChatTestUI.Instance.normalModeButton.colors;
+                    normalColors.normalColor = activeColor;
+                    ChatTestUI.Instance.normalModeButton.colors = normalColors;
+                }
+                break;
+                
+            case LearningMode.Scene:
+                if (ChatTestUI.Instance.sceneModeButton != null)
+                {
+                    var sceneColors = ChatTestUI.Instance.sceneModeButton.colors;
+                    sceneColors.normalColor = activeColor;
+                    ChatTestUI.Instance.sceneModeButton.colors = sceneColors;
+                }
+                break;
+                
+            case LearningMode.Word:
+                if (ChatTestUI.Instance.wordModeButton != null)
+                {
+                    var wordColors = ChatTestUI.Instance.wordModeButton.colors;
+                    wordColors.normalColor = activeColor;
+                    ChatTestUI.Instance.wordModeButton.colors = wordColors;
+                }
+                break;
+        }
     }
 }

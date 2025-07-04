@@ -32,10 +32,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 5527971330862261410}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.29, y: 0.3}
-  m_SizeDelta: {x: 72.13, y: 27.63}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: -0.27999878, y: -0.84000015}
+  m_SizeDelta: {x: -5.11, y: -4.93}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &703394255454891088
 CanvasRenderer:
@@ -65,7 +65,13 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Heyyyyy i am here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  m_text: "<color=#4CAF50>Hello! I'm your AI English tutor!</color>\r\n\r\n<color=#2196F3><b>I'm
+    here to help you improve your English in three exciting ways:</b></color>\r\n\r\n<color=#FF9800>\u2022
+    <b>Normal Mode</b></color>: Chat with me naturally and get grammar tips\r\n<color=#9C27B0>\u2022
+    <b>Scene Mode</b></color>: Show me pictures and learn through real-world scenes 
+    \r\n<color=#F44336>\u2022 <b>Word Mode</b></color>: Master vocabulary with interactive
+    practice\r\n\r\n<color=#4CAF50><b>Let's start chatting!</b></color> Try saying
+    '<i>Hello</i>' or ask me anything in English!\";\r\n        "
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -92,12 +98,12 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 4.4
-  m_fontSizeBase: 4.4
+  m_fontSize: 4.05
+  m_fontSizeBase: 5.83
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 3
+  m_fontSizeMax: 8
   m_fontStyle: 0
   m_HorizontalAlignment: 1
   m_VerticalAlignment: 256
@@ -169,8 +175,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 10.64, y: -5.35}
+  m_SizeDelta: {x: 21.29, y: 10.71}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4958462677769581781
 CanvasRenderer:
@@ -193,14 +199,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: df907364b2f77e94dba121c1033e7e74, type: 3}
+  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -247,8 +253,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 82.31, y: 34.3}
+  m_AnchoredPosition: {x: 0.19580078, y: -0.010253906}
+  m_SizeDelta: {x: 121.4575, y: 36.375}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &8930464702354460296
 Canvas:
@@ -295,7 +301,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!114 &8208496900167287819
 MonoBehaviour:
   m_ObjectHideFlags: 0

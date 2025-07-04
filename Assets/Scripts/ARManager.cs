@@ -402,6 +402,19 @@ public class ARManager : MonoBehaviour
                 DebugPanel.Instance.LogWarning("Chat container setup failed");
         }
         
+        // Trigger AI tutor self-introduction after tutor is summoned
+        if (ChatManager.Instance != null)
+        {
+            ChatManager.Instance.TriggerSelfIntroduction();
+            if (DebugPanel.Instance != null)
+                DebugPanel.Instance.Log("Triggered AI tutor self-introduction");
+        }
+        else
+        {
+            if (DebugPanel.Instance != null)
+                DebugPanel.Instance.LogWarning("ChatManager not found, cannot trigger self-introduction");
+        }
+        
         if (DebugPanel.Instance != null)
             DebugPanel.Instance.Log("Tutor initialization complete");
     }

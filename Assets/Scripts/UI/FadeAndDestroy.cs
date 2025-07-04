@@ -2,8 +2,8 @@ using UnityEngine;
 
 public class FadeAndDestroy : MonoBehaviour
 {
-    public float fadeDuration = 2f;
-    public float lifeTime = 15f;
+    public float fadeDuration = 5f;
+    public float lifeTime = 25f;
 
     private float timer = 0f;
     private CanvasGroup canvasGroup;
