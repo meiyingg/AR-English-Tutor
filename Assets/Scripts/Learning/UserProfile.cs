@@ -84,11 +84,11 @@ public class UserProfile
     {
         return level switch
         {
-            >= 1 and <= 5 => new Color(0.5f, 0.8f, 0.5f),    // 绿色 - Beginner
-            >= 6 and <= 10 => new Color(0.5f, 0.7f, 1f),     // 蓝色 - Intermediate
-            >= 11 and <= 15 => new Color(0.8f, 0.5f, 1f),    // 紫色 - Advanced
-            >= 16 and <= 20 => new Color(1f, 0.7f, 0.3f),    // 橙色 - Expert
-            >= 21 => new Color(1f, 0.8f, 0.2f),              // 金色 - Master
+            >= 1 and <= 5 => new Color(0.5f, 0.8f, 0.5f),    // Green - Beginner
+            >= 6 and <= 10 => new Color(0.5f, 0.7f, 1f),     // Blue - Intermediate
+            >= 11 and <= 15 => new Color(0.8f, 0.5f, 1f),    // Purple - Advanced
+            >= 16 and <= 20 => new Color(1f, 0.7f, 0.3f),    // Orange - Expert
+            >= 21 => new Color(1f, 0.8f, 0.2f),              // Gold - Master
             _ => Color.white
         };
     }

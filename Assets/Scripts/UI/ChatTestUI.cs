@@ -44,6 +44,11 @@ public class ChatTestUI : MonoBehaviour
     public GameObject worldSpaceMessagePrefab; // Your new ChatMessage_Realworld prefab
     public Transform chatContentPanel; // Legacy screen-space container
     
+    [Header("Learning Mode Buttons")]
+    public Button sceneModeButton; // 场景学习模式按钮
+    public Button wordModeButton; // 单词学习模式按钮
+    public Button normalModeButton; // 普通聊天模式按钮
+    
     [Header("Scene Awareness")]
     [Tooltip("Whether to auto-initialize the background scene monitoring")]
     public bool enableSceneAwareness = true;
@@ -167,6 +172,37 @@ public class ChatTestUI : MonoBehaviour
         else
         {
             Debug.LogWarning("?? Take Photo button not assigned in Inspector. Please drag TakePhotoButton to ChatTestUI component.");
+        }
+        
+        // Connect learning mode buttons
+        if (sceneModeButton != null)
+        {
+            sceneModeButton.onClick.AddListener(OnSceneModeButtonClick);
+            Debug.Log("? Scene Mode button connected");
+        }
+        else
+        {
+            Debug.LogWarning("?? Scene Mode button not assigned in Inspector. Please drag Scene Mode Button to ChatTestUI component.");
+        }
+        
+        if (wordModeButton != null)
+        {
+            wordModeButton.onClick.AddListener(OnWordModeButtonClick);
+            Debug.Log("? Word Mode button connected");
+        }
+        else
+        {
+            Debug.LogWarning("?? Word Mode button not assigned in Inspector. Please drag Word Mode Button to ChatTestUI component.");
+        }
+        
+        if (normalModeButton != null)
+        {
+            normalModeButton.onClick.AddListener(OnNormalModeButtonClick);
+            Debug.Log("? Normal Mode button connected");
+        }
+        else
+        {
+            Debug.LogWarning("?? Normal Mode button not assigned in Inspector. Please drag Normal Mode Button to ChatTestUI component.");
         }
         
         // Subscribe to AudioManager events once in Start (not in StartRecording)
@@ -1249,5 +1285,54 @@ public class ChatTestUI : MonoBehaviour
         }
         
         Debug.Log($"Configured {(allTexts != null ? allTexts.Length : 0)} TextMeshPro components for rich text and emoji support");
+    }
+
+    // Learning Mode Button Handlers
+    private void OnSceneModeButtonClick()
+    {
+        Debug.Log("Scene Mode button clicked");
+        
+        // Switch to scene learning mode
+        if (LearningModeManager.Instance != null)
+        {
+            LearningModeManager.Instance.SwitchMode(LearningModeManager.LearningMode.Scene);
+        }
+        else
+        {
+            Debug.LogWarning("LearningModeManager not found! Please add LearningModeManager to the scene.");
+            UpdateChatHistory("Scene learning mode unavailable. Please check LearningModeManager setup.", ChatManager.Sender.Tutor);
+        }
+    }
+    
+    private void OnWordModeButtonClick()
+    {
+        Debug.Log("Word Mode button clicked");
+        
+        // Switch to word learning mode
+        if (LearningModeManager.Instance != null)
+        {
+            LearningModeManager.Instance.SwitchMode(LearningModeManager.LearningMode.Word);
+        }
+        else
+        {
+            Debug.LogWarning("LearningModeManager not found! Please add LearningModeManager to the scene.");
+            UpdateChatHistory("Word learning mode unavailable. Please check LearningModeManager setup.", ChatManager.Sender.Tutor);
+        }
+    }
+    
+    private void OnNormalModeButtonClick()
+    {
+        Debug.Log("Normal Mode button clicked");
+        
+        // Switch to normal chat mode
+        if (LearningModeManager.Instance != null)
+        {
+            LearningModeManager.Instance.SwitchMode(LearningModeManager.LearningMode.Normal);
+        }
+        else
+        {
+            Debug.LogWarning("LearningModeManager not found! Please add LearningModeManager to the scene.");
+            UpdateChatHistory("Normal chat mode unavailable. Please check LearningModeManager setup.", ChatManager.Sender.Tutor);
+        }
     }
 }
