@@ -381,7 +381,7 @@ public class LearningModeManager : MonoBehaviour
     /// Process AI response to extract learning content for review
     /// Called when AI responds with educational content
     /// </summary>
-    public void ProcessAIResponseForReview(string aiResponse)
+    public async void ProcessAIResponseForReview(string aiResponse)
     {
         if (ReviewManager.Instance == null || string.IsNullOrEmpty(aiResponse))
             return;
@@ -389,92 +389,232 @@ public class LearningModeManager : MonoBehaviour
         switch (currentMode)
         {
             case LearningMode.Word:
-                ExtractWordsFromResponse(aiResponse);
+                await ExtractWordsFromResponseWithAI(aiResponse);
                 break;
             case LearningMode.Scene:
-                ExtractTopicsFromResponse(aiResponse);
+                await ExtractTopicsFromResponseWithAI(aiResponse);
                 break;
-            // Normal mode doesn't auto-extract for review
+            case LearningMode.Normal:
+                await ExtractMixedContentFromResponseWithAI(aiResponse);
+                break;
         }
     }
 
     /// <summary>
-    /// Extract vocabulary words from AI response
-    /// Simple keyword detection for Word mode
+    /// Use AI to extract vocabulary words from AI response
+    /// Enhanced version with context tracking
     /// </summary>
-    private void ExtractWordsFromResponse(string response)
+    private async System.Threading.Tasks.Task ExtractWordsFromResponseWithAI(string response)
     {
-        if (ReviewManager.Instance == null) return;
+        if (ReviewManager.Instance == null || OpenAIManager.Instance == null) return;
 
-        // Simple keyword extraction - look for common vocabulary teaching patterns
-        string[] wordIndicators = { "word:", "vocabulary:", "learn the word", "new word", "key word" };
-        string lowerResponse = response.ToLower();
+        string extractionPrompt = $@"Analyze this English tutoring response and extract vocabulary being taught.
+Return in this format (one per line):
+WORD: [word] | MEANING: [simple definition] | CONTEXT: [usage example]
 
-        foreach (string indicator in wordIndicators)
+Only include words being actively taught or explained. Maximum 2 entries.
+If no vocabulary is being taught, return 'NONE'.
+
+Response to analyze: {response}
+
+Extraction:";
+
+        try
         {
-            if (lowerResponse.Contains(indicator))
+            var messages = new System.Collections.Generic.List<ChatMessage>
             {
-                // Try to extract the word that follows the indicator
-                int index = lowerResponse.IndexOf(indicator);
-                if (index >= 0)
+                new ChatMessage { role = "user", content = extractionPrompt }
+            };
+            
+            string aiResult = await OpenAIManager.Instance.PostRequest(messages);
+            
+            if (!string.IsNullOrEmpty(aiResult) && aiResult.Trim().ToUpper() != "NONE")
+            {
+                ParseEnhancedWordExtraction(aiResult, response);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error extracting words with AI: {e.Message}");
+            ExtractWordsFromResponseSimple(response);
+        }
+    }
+
+    /// <summary>
+    /// Parse enhanced word extraction result
+    /// </summary>
+    private void ParseEnhancedWordExtraction(string aiResult, string originalResponse)
+    {
+        string[] lines = aiResult.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (string line in lines)
+        {
+            if (line.Contains("WORD:") && line.Contains("MEANING:"))
+            {
+                try
                 {
-                    string remaining = response.Substring(index + indicator.Length).Trim();
-                    string[] words = remaining.Split(new char[] { ' ', '.', ',', ':', ';', '!', '?' }, System.StringSplitOptions.RemoveEmptyEntries);
-                    
-                    if (words.Length > 0)
+                    string[] parts = line.Split('|');
+                    string word = parts[0].Replace("WORD:", "").Trim().ToLower();
+                    string meaning = parts.Length > 1 ? parts[1].Replace("MEANING:", "").Trim() : "";
+                    string context = parts.Length > 2 ? parts[2].Replace("CONTEXT:", "").Trim() : 
+                                   originalResponse.Substring(0, Mathf.Min(100, originalResponse.Length));
+
+                    if (word.Length > 1 && word.Length < 20)
                     {
-                        string word = words[0].Trim('\"', '\'', '(', ')');
-                        if (word.Length > 1 && word.Length < 20) // Reasonable word length
-                        {
-                            ReviewManager.Instance.AddLearnedWord(word);
-                            Debug.Log($"Added word to review: {word}");
-                        }
+                        ReviewManager.Instance.AddLearnedWord(word);
+                        Debug.Log($"Enhanced extraction - Word: {word}, Meaning: {meaning}");
                     }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"Failed to parse word extraction line: {line}, Error: {e.Message}");
                 }
             }
         }
     }
 
     /// <summary>
-    /// Extract topics from AI response
-    /// Simple topic detection for Scene mode
+    /// Use AI to extract topics from AI response
     /// </summary>
-    private void ExtractTopicsFromResponse(string response)
+    private async System.Threading.Tasks.Task ExtractTopicsFromResponseWithAI(string response)
     {
-        if (ReviewManager.Instance == null) return;
+        if (ReviewManager.Instance == null || OpenAIManager.Instance == null) return;
 
-        // Common scene topics to look for
-        string[] topicKeywords = {
-            "restaurant", "dining", "ordering food", "menu",
-            "shopping", "store", "buying", "cashier",
-            "airport", "flight", "travel", "hotel",
-            "office", "meeting", "workplace", "business",
-            "school", "classroom", "studying", "homework",
-            "hospital", "doctor", "health", "medicine",
-            "park", "nature", "outdoor", "exercise"
-        };
+        string extractionPrompt = $@"Analyze this English scene learning response and identify the main topic or situation being taught.
+Return only ONE main topic/situation (like 'restaurant', 'shopping', 'airport', 'office', etc.).
+Use simple, common words. If no clear scene/topic, return 'NONE'.
 
-        string lowerResponse = response.ToLower();
-        
-        foreach (string topic in topicKeywords)
+Response to analyze: {response}
+
+Main topic:";
+
+        try
         {
-            if (lowerResponse.Contains(topic))
+            var messages = new System.Collections.Generic.List<ChatMessage>
             {
-                ReviewManager.Instance.AddLearnedTopic(topic);
-                Debug.Log($"Added topic to review: {topic}");
-                return; // Only add one topic per response to avoid duplicates
+                new ChatMessage { role = "user", content = extractionPrompt }
+            };
+            
+            string aiResult = await OpenAIManager.Instance.PostRequest(messages);
+            
+            if (!string.IsNullOrEmpty(aiResult) && aiResult.Trim().ToUpper() != "NONE")
+            {
+                string topic = aiResult.Trim().ToLower();
+                if (topic.Length > 1 && topic.Length < 30)
+                {
+                    ReviewManager.Instance.AddLearnedTopic(topic);
+                    Debug.Log($"AI extracted topic for review: {topic}");
+                }
             }
         }
-        
-        // If no predefined topic found, try to extract from context
-        if (lowerResponse.Contains("scene") || lowerResponse.Contains("location") || lowerResponse.Contains("place"))
+        catch (System.Exception e)
         {
-            // Extract a general topic based on current mode
-            string generalTopic = $"scene_conversation_{System.DateTime.Now:yyyyMMdd}";
-            ReviewManager.Instance.AddLearnedTopic(generalTopic);
+            Debug.LogError($"Error extracting topics with AI: {e.Message}");
+            // Fallback to simple extraction
+            ExtractTopicsFromResponseSimple(response);
         }
     }
 
+    /// <summary>
+    /// Use AI to extract mixed learning content from Normal mode responses
+    /// Intelligently detects and categorizes vocabulary words and topics
+    /// </summary>
+    private async System.Threading.Tasks.Task ExtractMixedContentFromResponseWithAI(string response)
+    {
+        if (ReviewManager.Instance == null || OpenAIManager.Instance == null) return;
+
+        string extractionPrompt = $@"Analyze this English tutoring response and extract any learning content.
+Identify:
+1. Vocabulary words being taught or explained (nouns, verbs, adjectives)
+2. Topics/themes being discussed (like 'restaurant', 'travel', 'work', etc.)
+
+Return your analysis in this exact format:
+WORDS: word1, word2, word3 (or NONE if no vocabulary)
+TOPICS: topic1, topic2 (or NONE if no topics)
+
+Only include content that would be valuable for language learning review.
+Maximum 3 words and 2 topics.
+
+Response to analyze: {response}
+
+Analysis:";
+
+        try
+        {
+            var messages = new System.Collections.Generic.List<ChatMessage>
+            {
+                new ChatMessage { role = "user", content = extractionPrompt }
+            };
+            
+            string aiResult = await OpenAIManager.Instance.PostRequest(messages);
+            
+            if (!string.IsNullOrEmpty(aiResult))
+            {
+                ParseMixedExtractionResult(aiResult);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error extracting mixed content with AI: {e.Message}");
+            // Fallback: try both simple extractions
+            ExtractWordsFromResponseSimple(response);
+            ExtractTopicsFromResponseSimple(response);
+        }
+    }
+
+    /// <summary>
+    /// Parse the mixed extraction result from AI
+    /// </summary>
+    private void ParseMixedExtractionResult(string aiResult)
+    {
+        if (ReviewManager.Instance == null) return;
+
+        string[] lines = aiResult.Split(new char[] { '\n', '\r' }, System.StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (string line in lines)
+        {
+            string trimmedLine = line.Trim();
+            
+            // Parse words
+            if (trimmedLine.StartsWith("WORDS:", System.StringComparison.OrdinalIgnoreCase))
+            {
+                string wordsSection = trimmedLine.Substring(6).Trim();
+                if (!wordsSection.Equals("NONE", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] words = wordsSection.Split(',');
+                    foreach (string word in words)
+                    {
+                        string cleanWord = word.Trim().ToLower();
+                        if (cleanWord.Length > 1 && cleanWord.Length < 20 && !string.IsNullOrWhiteSpace(cleanWord))
+                        {
+                            ReviewManager.Instance.AddLearnedWord(cleanWord);
+                            Debug.Log($"Normal mode AI extracted word: {cleanWord}");
+                        }
+                    }
+                }
+            }
+            
+            // Parse topics
+            else if (trimmedLine.StartsWith("TOPICS:", System.StringComparison.OrdinalIgnoreCase))
+            {
+                string topicsSection = trimmedLine.Substring(7).Trim();
+                if (!topicsSection.Equals("NONE", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] topics = topicsSection.Split(',');
+                    foreach (string topic in topics)
+                    {
+                        string cleanTopic = topic.Trim().ToLower();
+                        if (cleanTopic.Length > 1 && cleanTopic.Length < 30 && !string.IsNullOrWhiteSpace(cleanTopic))
+                        {
+                            ReviewManager.Instance.AddLearnedTopic(cleanTopic);
+                            Debug.Log($"Normal mode AI extracted topic: {cleanTopic}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     /// <summary>
     /// Manual method to add learned content
     /// Can be called from UI or other systems
@@ -491,6 +631,52 @@ public class LearningModeManager : MonoBehaviour
         else
         {
             ReviewManager.Instance.AddLearnedTopic(content);
+        }
+    }
+
+    /// <summary>
+    /// Fallback: Simple keyword extraction for words
+    /// </summary>
+    private void ExtractWordsFromResponseSimple(string response)
+    {
+        if (ReviewManager.Instance == null) return;
+
+        // Simple fallback - look for quoted words or capitalized words
+        var matches = System.Text.RegularExpressions.Regex.Matches(response, @"""(\w+)""|'(\w+)'|\b[A-Z][a-z]+\b");
+        foreach (System.Text.RegularExpressions.Match match in matches)
+        {
+            string word = match.Value.Trim('"', '\'').ToLower();
+            if (word.Length > 2 && word.Length < 15)
+            {
+                ReviewManager.Instance.AddLearnedWord(word);
+                Debug.Log($"Simple extracted word: {word}");
+                break; // Only add one word to avoid spam
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fallback: Simple keyword extraction for topics
+    /// </summary>
+    private void ExtractTopicsFromResponseSimple(string response)
+    {
+        if (ReviewManager.Instance == null) return;
+
+        // Simple fallback - common scene keywords
+        string[] topicKeywords = {
+            "restaurant", "dining", "food", "menu", "shopping", "store", 
+            "airport", "travel", "hotel", "office", "school", "hospital", "park"
+        };
+
+        string lowerResponse = response.ToLower();
+        foreach (string topic in topicKeywords)
+        {
+            if (lowerResponse.Contains(topic))
+            {
+                ReviewManager.Instance.AddLearnedTopic(topic);
+                Debug.Log($"Simple extracted topic: {topic}");
+                return;
+            }
         }
     }
 }
