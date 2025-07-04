@@ -97,21 +97,32 @@ public class LearningModeManager : MonoBehaviour
     
     /// <summary>
     /// 检查用户文本是否包含模式切换指令
+    /// 只响应明确的模式切换命令，避免复习内容触发误切换
     /// </summary>
     public bool CheckForModeCommand(string userText)
     {
-        string lowerText = userText.ToLower();
+        string lowerText = userText.ToLower().Trim();
         
-        // 检查场景模式指令
-        if (lowerText.Contains("scene mode") || lowerText.Contains("scene learning"))
+        // 如果复习系统正在活跃，不处理模式切换命令
+        if (ReviewManager.Instance != null && ReviewManager.Instance.IsReviewActive())
+        {
+            return false;
+        }
+        
+        // 检查场景模式指令 - 需要明确的模式切换意图
+        if (lowerText.Contains("scene mode") || 
+            lowerText.Contains("scene learning") ||
+            (lowerText.Contains("switch to scene") || lowerText.Contains("activate scene")))
         {
             SwitchMode(LearningMode.Scene);
             return true;
         }
         
-        // 检查单词模式指令
-        if (lowerText.Contains("word mode") || lowerText.Contains("word learning") || 
-            lowerText.Contains("vocabulary"))
+        // 检查单词模式指令 - 需要明确的模式切换意图
+        if (lowerText.Contains("word mode") || 
+            lowerText.Contains("word learning") ||
+            (lowerText.Contains("switch to word") || lowerText.Contains("activate word")) ||
+            (lowerText.Contains("vocabulary mode") || lowerText.Contains("vocabulary learning")))
         {
             SwitchMode(LearningMode.Word);
             return true;
@@ -119,8 +130,9 @@ public class LearningModeManager : MonoBehaviour
         
         // 检查普通模式指令
         if (lowerText.Contains("normal mode") || lowerText.Contains("chat mode") || 
-            lowerText.Contains("normal") || lowerText.Contains("exit") || 
-            lowerText.Contains("back to normal") || lowerText.Contains("regular chat"))
+            lowerText.Contains("exit mode") || lowerText.Contains("back to normal") || 
+            lowerText.Contains("regular chat") ||
+            (lowerText.Contains("switch to normal") || lowerText.Contains("activate normal")))
         {
             SwitchMode(LearningMode.Normal);
             return true;

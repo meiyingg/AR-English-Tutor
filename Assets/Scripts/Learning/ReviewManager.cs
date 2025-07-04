@@ -4,6 +4,7 @@ using TMPro;
 using System.Collections.Generic;
 using System;
 using System.Text;
+using System.Linq;
 
 /// <summary>
 /// Review Manager - Manages learned words and topics for review
@@ -65,6 +66,63 @@ public class ReviewManager : MonoBehaviour
     {
         LoadReviewData();
         SetupUI();
+        SubscribeToEvents();
+    }
+
+    /// <summary>
+    /// Subscribe to ChatManager events to catch AI-generated review content
+    /// </summary>
+    private void SubscribeToEvents()
+    {
+        if (ChatManager.Instance != null)
+        {
+            ChatManager.Instance.onNewMessage.AddListener(OnNewMessage);
+        }
+    }
+
+    /// <summary>
+    /// Handle new messages from ChatManager - capture review content
+    /// </summary>
+    private void OnNewMessage(string message, ChatManager.Sender sender, bool isNotification)
+    {
+        // Only process AI (Tutor) messages that are not notifications
+        if (sender != ChatManager.Sender.Tutor || isNotification)
+            return;
+
+        // If we're expecting a review response, display it directly
+        if (isReviewActive)
+        {
+            Debug.Log($"? Displaying AI review response in review panel");
+            DisplayAIReviewStory(message);
+            isReviewActive = false; // Reset the flag
+        }
+    }
+
+    /// <summary>
+    /// Check if the message contains words in bold format (likely review words)
+    /// </summary>
+    private bool HasReviewWordsInBold(string message)
+    {
+        // Simple check for <b>word</b> pattern
+        return message.Contains("<b>") && message.Contains("</b>");
+    }
+
+    /// <summary>
+    /// Display AI-generated review story in the review panel
+    /// </summary>
+    private void DisplayAIReviewStory(string aiStory)
+    {
+        if (reviewContentPanel != null)
+        {
+            // Clear the loading message
+            foreach (Transform child in reviewContentPanel)
+            {
+                Destroy(child.gameObject);
+            }
+
+            // Display the AI-generated story
+            CreateReviewMessage(aiStory);
+        }
     }
 
     /// <summary>
@@ -145,8 +203,6 @@ public class ReviewManager : MonoBehaviour
 
         // 确保所有列表长度一致
         SyncListsLength();
-
-        Debug.Log($"Loaded {learnedWords.Count} words and {learnedTopics.Count} topics for review");
     }
 
     /// <summary>
@@ -239,7 +295,6 @@ public class ReviewManager : MonoBehaviour
             learnedWordsLastReview.RemoveAt(0);
         }
         SaveReviewData();
-        Debug.Log($"Added word to review: {word}");
     }
 
     /// <summary>
@@ -264,7 +319,6 @@ public class ReviewManager : MonoBehaviour
             learnedTopicsLastReview.RemoveAt(0);
         }
         SaveReviewData();
-        Debug.Log($"Added topic to review: {topic}");
     }
 
     /// <summary>
@@ -276,11 +330,6 @@ public class ReviewManager : MonoBehaviour
         {
             reviewPanel.SetActive(true);
             DisplayReviewContent();
-            Debug.Log("Review panel shown successfully");
-        }
-        else
-        {
-            Debug.LogError("Cannot show review panel - reviewPanel is null!");
         }
     }
 
@@ -292,11 +341,6 @@ public class ReviewManager : MonoBehaviour
         if (reviewPanel != null)
         {
             reviewPanel.SetActive(false);
-            Debug.Log("Review panel hidden successfully");
-        }
-        else
-        {
-            Debug.LogError("Cannot hide review panel - reviewPanel is null!");
         }
     }
 
@@ -308,22 +352,15 @@ public class ReviewManager : MonoBehaviour
         if (reviewPanel != null)
         {
             bool isCurrentlyActive = reviewPanel.activeSelf;
-            Debug.Log($"Review panel current state: {(isCurrentlyActive ? "Active" : "Inactive")}");
             
             if (isCurrentlyActive)
             {
-                Debug.Log("Hiding review panel");
                 HideReviewPanel();
             }
             else
             {
-                Debug.Log("Showing review panel");
                 ShowReviewPanel();
             }
-        }
-        else
-        {
-            Debug.LogError("Review panel is null! Please assign it in ReviewManager Inspector.");
         }
     }
 
@@ -473,6 +510,9 @@ public class ReviewManager : MonoBehaviour
 
         GameObject messageObj = Instantiate(reviewMessagePrefab, reviewContentPanel);
         
+        if (messageObj == null)
+            return;
+        
         // Try to find TextMeshPro component to set the text
         TextMeshProUGUI textComponent = messageObj.GetComponentInChildren<TextMeshProUGUI>();
         if (textComponent != null)
@@ -488,7 +528,7 @@ public class ReviewManager : MonoBehaviour
     {
         if (learnedWords.Count == 0 && learnedTopics.Count == 0)
         {
-            Debug.Log("No content available for review");
+            AddDemoLearningData();
             return;
         }
 
@@ -499,8 +539,9 @@ public class ReviewManager : MonoBehaviour
 
         if (reviewWords.Count == 0 && string.IsNullOrEmpty(reviewTopic))
         {
-            Debug.Log("No content needs review right now");
-            return;
+            // 强制选择一些内容进行演示
+            reviewWords = learnedWords.Take(3).ToList();
+            if (learnedTopics.Count > 0) reviewTopic = learnedTopics[0];
         }
 
         // 保存当前复习的内容
@@ -514,18 +555,41 @@ public class ReviewManager : MonoBehaviour
             currentReviewItems.Add($"topic:{reviewTopic}");
         }
 
-        // Switch to review mode and start AI interaction
-        if (ChatManager.Instance != null && currentReviewItems.Count > 0)
+        // 重新启用ChatManager，让AI生成复习故事
+        isReviewActive = true;
+        
+        // 分离单词和话题
+        List<string> words = new List<string>();
+        string topic = "";
+        
+        foreach (string item in currentReviewItems)
         {
-            isReviewActive = true;
-            currentReviewIndex = 0;
-            
-            // Hide review panel and start AI review
-            HideReviewPanel();
-            
-            // Start AI review conversation
-            StartReviewConversation();
+            string[] parts = item.Split(':');
+            if (parts.Length == 2)
+            {
+                if (parts[0] == "word")
+                {
+                    words.Add(parts[1]);
+                }
+                else if (parts[0] == "topic")
+                {
+                    topic = parts[1];
+                }
+            }
         }
+        
+        // 先显示加载提示
+        if (reviewContentPanel != null)
+        {
+            foreach (Transform child in reviewContentPanel)
+            {
+                Destroy(child.gameObject);
+            }
+            CreateReviewMessage("? <b>AI is creating a review story for you...</b>\n\n<i>Please wait while I generate a story using your review words!</i>");
+        }
+        
+        // 调用AI生成复习故事
+        GenerateReviewStory(words, topic);
     }
 
     /// <summary>
@@ -689,8 +753,6 @@ public class ReviewManager : MonoBehaviour
             AddLearnedTopic(topic);
         }
         
-        Debug.Log("Demo learning data added! You now have sample words and topics to review.");
-        
         // Automatically show the review panel to display the demo data
         ShowReviewPanel();
     }
@@ -720,8 +782,6 @@ public class ReviewManager : MonoBehaviour
         PlayerPrefs.DeleteKey(LEARNED_WORDS_LAST_REVIEW_KEY);
         PlayerPrefs.DeleteKey(LEARNED_TOPICS_LAST_REVIEW_KEY);
         PlayerPrefs.Save();
-        
-        Debug.Log("All learning data and review history cleared!");
         
         // Refresh the display if panel is active
         if (reviewPanel != null && reviewPanel.activeSelf)
@@ -1250,6 +1310,239 @@ public class ReviewManager : MonoBehaviour
         }
         
         SaveReviewData();
-        Debug.Log($"Review completed for {reviewedWords.Count} words and 1 topic");
+    }
+
+    /// <summary>
+    /// 直接显示复习提示，然后调用AI生成复习内容
+    /// </summary>
+    private async void DisplayReviewPrompt()
+    {
+        if (currentReviewItems.Count == 0)
+        {
+            Debug.Log("No review items to display");
+            return;
+        }
+
+        // 分离单词和话题
+        List<string> words = new List<string>();
+        string topic = "";
+        
+        foreach (string item in currentReviewItems)
+        {
+            string[] parts = item.Split(':');
+            if (parts.Length == 2)
+            {
+                if (parts[0] == "word")
+                {
+                    words.Add(parts[1]);
+                }
+                else if (parts[0] == "topic")
+                {
+                    topic = parts[1];
+                }
+            }
+        }
+
+        // 先测试ChatManager是否工作
+        Debug.Log("Testing ChatManager with simple message...");
+        try
+        {
+            await ChatManager.Instance.SendMessage("Hello, this is a test message from ReviewManager.");
+            Debug.Log("Test message sent successfully");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Test message failed: {e.Message}");
+            ShowGeneratedStoryFallback(words, topic);
+            return;
+        }
+
+        // 等待一秒再发送真正的复习内容
+        await System.Threading.Tasks.Task.Delay(1000);
+
+        // 先显示一个加载提示
+        if (reviewContentPanel != null)
+        {
+            // 清除现有内容
+            foreach (Transform child in reviewContentPanel)
+            {
+                Destroy(child.gameObject);
+            }
+            
+            // 显示加载中提示
+            CreateReviewMessage(" <b>Preparing your review session...</b>\n\n<i>AI is creating a personalized review for you!</i>");
+        }
+
+        // 构建AI提示
+        StringBuilder aiPrompt = new StringBuilder();
+        aiPrompt.AppendLine("Generate a vocabulary review exercise using these words:");
+        
+        if (words.Count > 0)
+        {
+            aiPrompt.AppendLine($"Words: {string.Join(", ", words)}");
+        }
+        
+        if (!string.IsNullOrEmpty(topic))
+        {
+            aiPrompt.AppendLine($"Topic: {topic}");
+        }
+        
+        aiPrompt.AppendLine();
+        aiPrompt.AppendLine("Create a short story (3-4 sentences) that uses ALL the review words in the context of the given topic.");
+        aiPrompt.AppendLine("IMPORTANT: Make each review word BOLD using <b>word</b> tags.");
+        aiPrompt.AppendLine("Then ask the user to create their own story using the same words.");
+        aiPrompt.AppendLine();
+        aiPrompt.AppendLine("Example format:");
+        aiPrompt.AppendLine("Here's a story using your review words:");
+        aiPrompt.AppendLine("[Your story with <b>bold</b> words]");
+        aiPrompt.AppendLine();
+        aiPrompt.AppendLine("Now it's your turn! Create a story using these words: [word list]");
+
+        // 调用ChatManager发送AI请求
+        if (ChatManager.Instance != null)
+        {
+            Debug.Log("=== Sending review request to AI ===");
+            Debug.Log($"AI Prompt: {aiPrompt.ToString()}");
+            
+            try
+            {
+                await ChatManager.Instance.SendMessage(aiPrompt.ToString().TrimEnd());
+                Debug.Log("AI request sent successfully");
+                
+                // 标记复习完成（在AI回应后）
+                MarkReviewCompleted(words, topic);
+                Debug.Log("Review marked as completed");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"Error sending to ChatManager: {e.Message}");
+                // 显示错误信息
+                if (reviewContentPanel != null)
+                {
+                    foreach (Transform child in reviewContentPanel)
+                    {
+                        Destroy(child.gameObject);
+                    }
+                    CreateReviewMessage($"? <b>Error:</b> Failed to contact AI: {e.Message}");
+                }
+
+                // 备用方案：显示生成的故事内容
+                ShowGeneratedStoryFallback(words, topic);
+            }
+        }
+        else
+        {
+            Debug.LogError("ChatManager.Instance is null!");
+            // 显示错误信息
+            if (reviewContentPanel != null)
+            {
+                foreach (Transform child in reviewContentPanel)
+                {
+                    Destroy(child.gameObject);
+                }
+                CreateReviewMessage(" <b>Error:</b> ChatManager not available. Please try again.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 让AI生成包含复习单词的故事
+    /// </summary>
+    private async void GenerateReviewStory(List<string> words, string topic)
+    {
+        if (ChatManager.Instance == null)
+        {
+            Debug.LogError("ChatManager.Instance is null!");
+            ShowGeneratedStoryFallback(words, topic);
+            return;
+        }
+
+        // 构建AI提示，要求生成复习故事
+        StringBuilder storyPrompt = new StringBuilder();
+        storyPrompt.AppendLine("Please create a short, engaging story (4-6 sentences) for vocabulary review.");
+        storyPrompt.AppendLine();
+        storyPrompt.AppendLine($"You must use ALL of these words in the story: {string.Join(", ", words)}");
+        
+        if (!string.IsNullOrEmpty(topic))
+        {
+            storyPrompt.AppendLine($"The story should be related to: {topic}");
+        }
+        
+        storyPrompt.AppendLine();
+        storyPrompt.AppendLine("IMPORTANT formatting requirements:");
+        storyPrompt.AppendLine("- Make each review word BOLD using <b>word</b> tags");
+        storyPrompt.AppendLine("- Write a natural, flowing story");
+        storyPrompt.AppendLine("- After the story, add: 'Review complete! These words have been practiced.'");
+        storyPrompt.AppendLine();
+        storyPrompt.AppendLine("Start with: '? Review Story:' then write your story.");
+
+        try
+        {
+            Debug.Log("Sending story generation request to AI...");
+            await ChatManager.Instance.SendMessage(storyPrompt.ToString().TrimEnd());
+            
+            // 标记复习完成
+            MarkReviewCompleted(words, topic);
+            Debug.Log("Review story generation completed");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error generating review story: {e.Message}");
+            
+            // 备用方案：显示简单的复习内容
+            ShowGeneratedStoryFallback(words, topic);
+        }
+    }
+
+    /// <summary>
+    /// 备用方案：生成简单的复习故事
+    /// </summary>
+    private void ShowGeneratedStoryFallback(List<string> words, string topic)
+    {
+        StringBuilder storyContent = new StringBuilder();
+        storyContent.AppendLine("? <b>Review Story</b>");
+        storyContent.AppendLine();
+        
+        // 生成一个简单的故事
+        if (!string.IsNullOrEmpty(topic) && topic.ToLower().Contains("communication"))
+        {
+            storyContent.AppendLine($"Today I want to <b>{words[0]}</b> you understand something important. ");
+            storyContent.AppendLine($"The morning sun was <b>{words[1]}</b> brightly through the window, creating a <b>{words[2]}</b> scene. ");
+            storyContent.AppendLine($"She moved <b>{words[3]}</b> across the room, and the sweet <b>{words[4]}</b> of fresh coffee filled the air. ");
+            storyContent.AppendLine("This story helps you remember these vocabulary words in context!");
+        }
+        else
+        {
+            storyContent.AppendLine("Here's a simple story using your review words:");
+            storyContent.AppendLine();
+            foreach (string word in words)
+            {
+                storyContent.AppendLine($"? <b>{word}</b> - Practice using this word in sentences");
+            }
+            storyContent.AppendLine();
+            storyContent.AppendLine($"Topic: <b>{topic}</b>");
+        }
+        
+        storyContent.AppendLine();
+        storyContent.AppendLine("<i>Review complete! These words have been practiced.</i>");
+        
+        if (reviewContentPanel != null)
+        {
+            foreach (Transform child in reviewContentPanel)
+            {
+                Destroy(child.gameObject);
+            }
+            CreateReviewMessage(storyContent.ToString().TrimEnd());
+        }
+        
+        Debug.Log("Displayed fallback review story");
+    }
+
+    private void OnDestroy()
+    {
+        if (ChatManager.Instance != null)
+        {
+            ChatManager.Instance.onNewMessage.RemoveListener(OnNewMessage);
+        }
     }
 }

@@ -1,21 +1,21 @@
 # Enhanced Review System with Ebbinghaus Forgetting Curve
 
-## ? Major Improvements
+## ?? Major Improvements
 
 ### 1. **Ebbinghaus Forgetting Curve Integration**
-- **Scientific Spaced Repetition**: Uses research-backed intervals (1h ¡ú 8h ¡ú 1d ¡ú 3d ¡ú 1w ¡ú 2w ¡ú 1m)
+- **Scientific Spaced Repetition**: Uses research-backed intervals (1h ? 8h ? 1d ? 3d ? 1w ? 2w ? 1m)
 - **Adaptive Intervals**: Adjusts timing based on user performance and mastery level
 - **Difficulty Awareness**: Harder items get more frequent reviews
 
 ### 2. **Enhanced Learning Item Tracking**
 ```csharp
 LearnedItem features:
-©À©¤©¤ Content & Type (Word/Topic/Phrase/Grammar)
-©À©¤©¤ Mastery Level (New ¡ú Learning ¡ú Familiar ¡ú Mastered ¡ú Expert)
-©À©¤©¤ Difficulty Score (0-1, tracks user's struggle with item)
-©À©¤©¤ Context Examples (real usage examples from conversations)
-©À©¤©¤ Review Timing (next review calculated by Ebbinghaus curve)
-©¸©¤©¤ Performance History (tracks improvement over time)
+??? Content & Type (Word/Topic/Phrase/Grammar)
+??? Mastery Level (New ? Learning ? Familiar ? Mastered ? Expert)
+??? Difficulty Score (0-1, tracks user's struggle with item)
+??? Context Examples (real usage examples from conversations)
+??? Review Timing (next review calculated by Ebbinghaus curve)
+??? Performance History (tracks improvement over time)
 ```
 
 ### 3. **Intelligent Review Sessions**
@@ -30,37 +30,37 @@ LearnedItem features:
 - **Daily Targets**: Configurable daily review goals
 - **Overdue Notifications**: Automatic reminders for due reviews
 
-## ? User Experience Flow
+## ?? User Experience Flow
 
 ### Learning Phase
 ```
-User learns ¡ú AI extracts content ¡ú System creates LearnedItem ¡ú 
+User learns ? AI extracts content ? System creates LearnedItem ? 
 Schedules first review (1 hour later)
 ```
 
 ### Review Phase
 ```
-User clicks Review ¡ú System shows due items ¡ú Starts intelligent review ¡ú
-AI asks contextual questions ¡ú User responds ¡ú System updates mastery ¡ú
-Calculates next review time ¡ú Continues to next item
+User clicks Review ? System shows due items ? Starts intelligent review ?
+AI asks contextual questions ? User responds ? System updates mastery ?
+Calculates next review time ? Continues to next item
 ```
 
 ### Progress Tracking
 ```
 Review Panel shows:
-©À©¤©¤ Total items learned
-©À©¤©¤ Items due for review  
-©À©¤©¤ Mastery level breakdown
-©À©¤©¤ Next review schedule
-©¸©¤©¤ Progress statistics
+??? Total items learned
+??? Items due for review  
+??? Mastery level breakdown
+??? Next review schedule
+??? Progress statistics
 ```
 
-## ? Implementation Strategy
+## ?? Implementation Strategy
 
 ### Option 1: Replace Current System
 - Replace `ReviewManager` with `EnhancedReviewManager`
 - Update `LearningModeManager` to use new API
-- Migrate existing data (simple word/topic lists ¡ú enhanced items)
+- Migrate existing data (simple word/topic lists ? enhanced items)
 
 ### Option 2: Gradual Migration
 - Keep both systems initially
@@ -68,7 +68,7 @@ Review Panel shows:
 - Gradually migrate old data
 - Phase out old system
 
-## ? Key Benefits
+## ?? Key Benefits
 
 ### For Users
 - **Scientifically Optimized**: Reviews at optimal times for memory retention
@@ -82,7 +82,7 @@ Review Panel shows:
 - **Configurable**: Settings for different user preferences
 - **Robust**: Better error handling and data management
 
-## ? Migration Guide
+## ?? Migration Guide
 
 ### 1. **Backup Current Data**
 ```csharp
@@ -113,7 +113,7 @@ EnhancedReviewManager.Instance.AddLearnedContent(word, ItemType.Word, meaning, c
 - [ ] UI shows enhanced information
 - [ ] Data persists between sessions
 
-## ? Future Enhancements
+## ?? Future Enhancements
 
 ### Planned Features
 - **Learning Analytics Dashboard**: Detailed progress charts
