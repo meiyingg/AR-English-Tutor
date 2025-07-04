@@ -241,4 +241,256 @@ public class LearningModeManager : MonoBehaviour
                 break;
         }
     }
+    
+    /// <summary>
+    /// 自动从AI回复中提取并记录学习内容
+    /// </summary>
+    public void ProcessLearningContent(string aiResponse)
+    {
+        if (string.IsNullOrEmpty(aiResponse))
+            return;
+
+        // Find ReviewManager in scene if not already referenced
+        if (ReviewManager.Instance == null)
+        {
+            Debug.LogWarning("ReviewManager instance not found");
+            return;
+        }
+
+        // Extract and record content based on current mode
+        switch (currentMode)
+        {
+            case LearningMode.Word:
+                ExtractAndRecordWords(aiResponse);
+                break;
+            case LearningMode.Scene:
+                ExtractAndRecordTopics(aiResponse);
+                break;
+            // Normal mode doesn't auto-record content
+        }
+    }
+
+    /// <summary>
+    /// Extract words from AI response and record them for review
+    /// </summary>
+    private void ExtractAndRecordWords(string response)
+    {
+        // Simple word extraction - look for patterns like vocabulary teaching
+        string lowerResponse = response.ToLower();
+        
+        // Look for common vocabulary teaching patterns
+        if (lowerResponse.Contains("word") || lowerResponse.Contains("vocabulary"))
+        {
+            // Extract words that appear to be vocabulary items
+            // For simplicity, look for words that are emphasized or defined
+            string[] sentences = response.Split('.', '!', '?');
+            
+            foreach (string sentence in sentences)
+            {
+                // Look for definition patterns like "X means Y" or "X is Y"
+                if (sentence.Contains(" means ") || sentence.Contains(" is "))
+                {
+                    string[] parts = sentence.Split(new string[] { " means ", " is " }, System.StringSplitOptions.None);
+                    if (parts.Length >= 2)
+                    {
+                        string word = ExtractWord(parts[0]);
+                        if (!string.IsNullOrEmpty(word))
+                        {
+                            ReviewManager.Instance.AddLearnedWord(word);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extract topic from AI response and record it for review
+    /// </summary>
+    private void ExtractAndRecordTopics(string response)
+    {
+        // Simple topic extraction based on scene learning context
+        string topic = "";
+        
+        // Look for common scene/location keywords
+        string lowerResponse = response.ToLower();
+        
+        if (lowerResponse.Contains("restaurant") || lowerResponse.Contains("dining"))
+            topic = "Restaurant Scene";
+        else if (lowerResponse.Contains("shopping") || lowerResponse.Contains("store"))
+            topic = "Shopping Scene";
+        else if (lowerResponse.Contains("airport") || lowerResponse.Contains("travel"))
+            topic = "Airport Scene";
+        else if (lowerResponse.Contains("school") || lowerResponse.Contains("classroom"))
+            topic = "School Scene";
+        else if (lowerResponse.Contains("park") || lowerResponse.Contains("outdoor"))
+            topic = "Park Scene";
+        else if (lowerResponse.Contains("office") || lowerResponse.Contains("work"))
+            topic = "Office Scene";
+        else if (lowerResponse.Contains("hospital") || lowerResponse.Contains("medical"))
+            topic = "Hospital Scene";
+        else if (lowerResponse.Contains("home") || lowerResponse.Contains("house"))
+            topic = "Home Scene";
+        
+        if (!string.IsNullOrEmpty(topic))
+        {
+            ReviewManager.Instance.AddLearnedTopic(topic);
+        }
+    }
+
+    /// <summary>
+    /// Extract clean word from text
+    /// </summary>
+    private string ExtractWord(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return "";
+        
+        // Clean up the text to extract just the word
+        text = text.Trim();
+        text = text.Replace("\"", "").Replace("'", "").Replace(",", "");
+        
+        // Take only the first word if multiple words
+        string[] words = text.Split(' ');
+        if (words.Length > 0)
+        {
+            string word = words[words.Length - 1]; // Take the last word (likely the vocabulary word)
+            
+            // Remove common prefixes
+            if (word.StartsWith("the "))
+                word = word.Substring(4);
+            
+            return word.Trim();
+        }
+        
+        return "";
+    }
+
+    /// <summary>
+    /// Show review panel
+    /// </summary>
+    public void ShowReview()
+    {
+        if (ReviewManager.Instance != null)
+        {
+            ReviewManager.Instance.ShowReviewPanel();
+        }
+    }
+
+    /// <summary>
+    /// Process AI response to extract learning content for review
+    /// Called when AI responds with educational content
+    /// </summary>
+    public void ProcessAIResponseForReview(string aiResponse)
+    {
+        if (ReviewManager.Instance == null || string.IsNullOrEmpty(aiResponse))
+            return;
+
+        switch (currentMode)
+        {
+            case LearningMode.Word:
+                ExtractWordsFromResponse(aiResponse);
+                break;
+            case LearningMode.Scene:
+                ExtractTopicsFromResponse(aiResponse);
+                break;
+            // Normal mode doesn't auto-extract for review
+        }
+    }
+
+    /// <summary>
+    /// Extract vocabulary words from AI response
+    /// Simple keyword detection for Word mode
+    /// </summary>
+    private void ExtractWordsFromResponse(string response)
+    {
+        if (ReviewManager.Instance == null) return;
+
+        // Simple keyword extraction - look for common vocabulary teaching patterns
+        string[] wordIndicators = { "word:", "vocabulary:", "learn the word", "new word", "key word" };
+        string lowerResponse = response.ToLower();
+
+        foreach (string indicator in wordIndicators)
+        {
+            if (lowerResponse.Contains(indicator))
+            {
+                // Try to extract the word that follows the indicator
+                int index = lowerResponse.IndexOf(indicator);
+                if (index >= 0)
+                {
+                    string remaining = response.Substring(index + indicator.Length).Trim();
+                    string[] words = remaining.Split(new char[] { ' ', '.', ',', ':', ';', '!', '?' }, System.StringSplitOptions.RemoveEmptyEntries);
+                    
+                    if (words.Length > 0)
+                    {
+                        string word = words[0].Trim('\"', '\'', '(', ')');
+                        if (word.Length > 1 && word.Length < 20) // Reasonable word length
+                        {
+                            ReviewManager.Instance.AddLearnedWord(word);
+                            Debug.Log($"Added word to review: {word}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extract topics from AI response
+    /// Simple topic detection for Scene mode
+    /// </summary>
+    private void ExtractTopicsFromResponse(string response)
+    {
+        if (ReviewManager.Instance == null) return;
+
+        // Common scene topics to look for
+        string[] topicKeywords = {
+            "restaurant", "dining", "ordering food", "menu",
+            "shopping", "store", "buying", "cashier",
+            "airport", "flight", "travel", "hotel",
+            "office", "meeting", "workplace", "business",
+            "school", "classroom", "studying", "homework",
+            "hospital", "doctor", "health", "medicine",
+            "park", "nature", "outdoor", "exercise"
+        };
+
+        string lowerResponse = response.ToLower();
+        
+        foreach (string topic in topicKeywords)
+        {
+            if (lowerResponse.Contains(topic))
+            {
+                ReviewManager.Instance.AddLearnedTopic(topic);
+                Debug.Log($"Added topic to review: {topic}");
+                return; // Only add one topic per response to avoid duplicates
+            }
+        }
+        
+        // If no predefined topic found, try to extract from context
+        if (lowerResponse.Contains("scene") || lowerResponse.Contains("location") || lowerResponse.Contains("place"))
+        {
+            // Extract a general topic based on current mode
+            string generalTopic = $"scene_conversation_{System.DateTime.Now:yyyyMMdd}";
+            ReviewManager.Instance.AddLearnedTopic(generalTopic);
+        }
+    }
+
+    /// <summary>
+    /// Manual method to add learned content
+    /// Can be called from UI or other systems
+    /// </summary>
+    public void AddToReview(string content, bool isWord = true)
+    {
+        if (ReviewManager.Instance == null || string.IsNullOrEmpty(content))
+            return;
+
+        if (isWord)
+        {
+            ReviewManager.Instance.AddLearnedWord(content);
+        }
+        else
+        {
+            ReviewManager.Instance.AddLearnedTopic(content);
+        }
+    }
 }

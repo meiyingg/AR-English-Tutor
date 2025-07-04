@@ -21,8 +21,8 @@ public class AudioManager : MonoBehaviour
     
     [Header("TTS设置")]
     public TTSVoice selectedVoice = TTSVoice.alloy; // 默认语音
-    public float speechSpeed = 1.0f; // 语速 (0.25 to 4.0)
-    
+    public float speechSpeed = 1.4f; // 语速 (0.25 to 4.0, 默认1.4倍速)
+
     [Header("音频组件")]
     public AudioSource audioSource; // 用于播放TTS音频
     

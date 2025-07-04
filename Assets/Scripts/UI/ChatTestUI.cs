@@ -48,6 +48,7 @@ public class ChatTestUI : MonoBehaviour
     public Button sceneModeButton; // 场景学习模式按钮
     public Button wordModeButton; // 单词学习模式按钮
     public Button normalModeButton; // 普通聊天模式按钮
+    public Button reviewButton; // 复习模式按钮
     
     [Header("Scene Awareness")]
     [Tooltip("Whether to auto-initialize the background scene monitoring")]
@@ -211,6 +212,16 @@ public class ChatTestUI : MonoBehaviour
         else
         {
             Debug.LogWarning("?? Normal Mode button not assigned in Inspector. Please drag Normal Mode Button to ChatTestUI component.");
+        }
+        
+        if (reviewButton != null)
+        {
+            reviewButton.onClick.AddListener(OnReviewButtonClick);
+            Debug.Log("? Review button connected");
+        }
+        else
+        {
+            Debug.LogWarning("?? Review button not assigned in Inspector. Please drag Review Button to ChatTestUI component.");
         }
         
         // Subscribe to AudioManager events once in Start (not in StartRecording)
@@ -1477,6 +1488,22 @@ public class ChatTestUI : MonoBehaviour
         {
             Debug.LogWarning("LearningModeManager not found! Please add LearningModeManager to the scene.");
             UpdateChatHistory("Normal chat mode unavailable. Please check LearningModeManager setup.", ChatManager.Sender.Tutor);
+        }
+    }
+    
+    private void OnReviewButtonClick()
+    {
+        Debug.Log("Review button clicked");
+        
+        // Toggle review panel visibility
+        if (ReviewManager.Instance != null)
+        {
+            ReviewManager.Instance.ToggleReviewPanel();
+        }
+        else
+        {
+            Debug.LogWarning("ReviewManager not found! Please add ReviewManager to the scene.");
+            UpdateChatHistory("Review function unavailable. Please check ReviewManager setup.", ChatManager.Sender.Tutor);
         }
     }
     

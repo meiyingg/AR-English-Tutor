@@ -110,6 +110,12 @@ public class ChatManager : MonoBehaviour
             messages.Add(aiMessage);
             onNewMessage.Invoke(response, Sender.Tutor, false);
             
+            // Process AI response for review content extraction
+            if (LearningModeManager.Instance != null)
+            {
+                LearningModeManager.Instance.ProcessAIResponseForReview(response);
+            }
+            
             // In Normal mode, provide grammar correction after AI response
             if (LearningModeManager.Instance != null && 
                 LearningModeManager.Instance.currentMode == LearningModeManager.LearningMode.Normal)
@@ -170,6 +176,12 @@ public class ChatManager : MonoBehaviour
             
             // Replace the "Analyzing..." message with the actual response
             onNewMessage.Invoke(response, Sender.Tutor, false);
+            
+            // Process AI response for review content extraction
+            if (LearningModeManager.Instance != null)
+            {
+                LearningModeManager.Instance.ProcessAIResponseForReview(response);
+            }
         }
         else
         {
@@ -228,6 +240,12 @@ public class ChatManager : MonoBehaviour
             
             // Display the interactive lesson start
             onNewMessage.Invoke(response, Sender.Tutor, false);
+            
+            // Process AI response for review content extraction
+            if (LearningModeManager.Instance != null)
+            {
+                LearningModeManager.Instance.ProcessAIResponseForReview(response);
+            }
             
             // In Normal mode, provide grammar correction after AI response
             if (currentMode == LearningModeManager.LearningMode.Normal && !string.IsNullOrEmpty(additionalText))
